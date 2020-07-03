@@ -1,0 +1,7 @@
+apiVersion: tmax.io/v1
+kind: Registry
+metadata:
+  name: example-registry
+spec:
+  # Add fields here
+  size: 3
