@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"os"
 
 	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
@@ -18,6 +19,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+    // [TODO] Change into public repo
+    regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 )
 
 var log = logf.Log.WithName("controller_registry")
@@ -100,6 +104,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
+    createCertification(instance)
 
 	// Define a new Pod object
 	pod := newPodForCR(instance)
@@ -128,6 +133,45 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	// Pod already exists - don't requeue
 	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
 	return reconcile.Result{}, nil
+}
+
+func createCertification(reg *regv1.Registry) {
+    certLogger := log.WithValues("Certification Log")
+	registryDir = createDirectory(reg.Spec.DomainId, reg.Spec.RegistryId)
+    certLogger.Info("Create Certificates")
+}
+
+func createDirectory(domainId string, registryId string) string {
+    certLogger.Info("Create Cert Directory")
+
+    if _, err := os.Stat(regv1.OpenSslHomeDir); os.IsNotExist(err) {
+        // [TODO] Mode should be managed
+        os.Mkdir(regv1.OpenSslHomeDir, 0777)
+        certLogger.Info("Directory created : " + regv1.OpenSslHomeDir)
+    }
+
+    domainDir := regv1.OpenSslHomeDir + "/" + domainId
+    if _, err := os.Stat(donmainDir); os.IsNotExist(err) {
+        // [TODO] Mode should be managed
+        os.Mkdir(domainDir, 0777)
+        certLogger.Info("Directory created : " + domainDir)
+    }
+
+    registryDir := domainDir + "/" + registryId
+    if _, err := os.Stat(registryDir); os.IsNotExist(err) {
+        // [TODO] Mode should be managed
+        os.Mkdir(registryDir, 0777)
+        certLogger.Info("Directory created : " + registryDir)
+    }
+
+    dockerLoginHome := regv1.DockerLoginHomeDir
+    if _, err := os.Stat(dockerLoginHome); os.IsNotExist(err) {
+        // [TODO] Mode should be managed
+        os.Mkdir(dockerLoginHome, 0777)
+        certLogger.Info("Directory created : " + dockerLoginHome)
+    }
+
+	return registryDir
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
