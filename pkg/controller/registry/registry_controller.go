@@ -1,9 +1,9 @@
 package registry
 
 import (
+	"bytes"
 	"context"
 	"os"
-    "bytes"
 
 	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
@@ -21,8 +21,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-    // [TODO] Change into public repo
-    regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	// [TODO] Change into public repo
+	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 )
 
 var log = logf.Log.WithName("controller_registry")
@@ -92,9 +92,9 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Registry")
 
-	// Fetch the Registry instance
-	instance := &tmaxv1.Registry{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	// Fetch the Registry reg
+	reg := &tmaxv1.Registry{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, reg)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -106,13 +106,16 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-    createCertification(instance, r.client)
+	//certLogger := log.WithValues("Certification Log")
+	//registryDir := createDirectory(reg.Namespace, reg.Name)
+
+	//certificateCmd := createCertificateCmd(registryDir)
 
 	// Define a new Pod object
-	pod := newPodForCR(instance)
+	pod := newPodForCR(reg)
 
-	// Set Registry instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	// Set Registry reg as the owner and controller
+	if err := controllerutil.SetControllerReference(reg, pod, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -137,73 +140,52 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-func createCertification(reg *regv1.Registry, client client.Client) {
-    certLogger := log.WithValues("Certification Log")
-    registryDir := createDirectory(reg.ObjectMeta.Namespace, reg.ObjectMeta.Name)
-
-    err = client.Get(context.TODO(), types.NamespacedName{Name: reg.ObjectMeta.Name, Namespace: reg.ObjectMet.Namespace}, reg)
-    if err != nil {
-        if errors.IsNotFound(err) {
-            certLogger.Info("Registry not found")
-            return reconcile.Result{}, err
-        }
-
-        certLogger.Info("Error while reading registry")
-        return reconcile.Result{}, err
-    }
-
-    clusterIP := reg.
-
-
-    certificateCmd := createCertificateCmd(registryDir)
-    certLogger.Info("Create Certificates")
-}
-
 func createDirectory(domainId string, registryId string) string {
-    certLogger.Info("Create Cert Directory")
+	certLogger := log.WithValues("Create Directory")
+	certLogger.Info("Create Cert Directory")
 
-    if _, err := os.Stat(regv1.OpenSslHomeDir); os.IsNotExist(err) {
-        // [TODO] Mode should be managed
-        os.Mkdir(regv1.OpenSslHomeDir, 0777)
-        certLogger.Info("Directory created : " + regv1.OpenSslHomeDir)
-    }
+	if _, err := os.Stat(regv1.OpenSslHomeDir); os.IsNotExist(err) {
+		// [TODO] Mode should be managed
+		os.Mkdir(regv1.OpenSslHomeDir, 0777)
+		certLogger.Info("Directory created : " + regv1.OpenSslHomeDir)
+	}
 
-    domainDir := regv1.OpenSslHomeDir + "/" + domainId
-    if _, err := os.Stat(donmainDir); os.IsNotExist(err) {
-        // [TODO] Mode should be managed
-        os.Mkdir(domainDir, 0777)
-        certLogger.Info("Directory created : " + domainDir)
-    }
+	domainDir := regv1.OpenSslHomeDir + "/" + domainId
+	if _, err := os.Stat(domainDir); os.IsNotExist(err) {
+		// [TODO] Mode should be managed
+		os.Mkdir(domainDir, 0777)
+		certLogger.Info("Directory created : " + domainDir)
+	}
 
-    registryDir := domainDir + "/" + registryId
-    if _, err := os.Stat(registryDir); os.IsNotExist(err) {
-        // [TODO] Mode should be managed
-        os.Mkdir(registryDir, 0777)
-        certLogger.Info("Directory created : " + registryDir)
-    }
+	registryDir := domainDir + "/" + registryId
+	if _, err := os.Stat(registryDir); os.IsNotExist(err) {
+		// [TODO] Mode should be managed
+		os.Mkdir(registryDir, 0777)
+		certLogger.Info("Directory created : " + registryDir)
+	}
 
-    dockerLoginHome := regv1.DockerLoginHomeDir
-    if _, err := os.Stat(dockerLoginHome); os.IsNotExist(err) {
-        // [TODO] Mode should be managed
-        os.Mkdir(dockerLoginHome, 0777)
-        certLogger.Info("Directory created : " + dockerLoginHome)
-    }
+	dockerLoginHome := regv1.DockerLoginHomeDir
+	if _, err := os.Stat(dockerLoginHome); os.IsNotExist(err) {
+		// [TODO] Mode should be managed
+		os.Mkdir(dockerLoginHome, 0777)
+		certLogger.Info("Directory created : " + dockerLoginHome)
+	}
 
 	return registryDir
 }
 
-func createCertificateCmd(registrDir string) string {
-    // For Efficiency
-    var buffer bytes.Buffer
+func createCertificateCmd(registryDir string, clusterIP string) string {
+	// For Efficiency
+	var buffer bytes.Buffer
 
-    buffer.WriteString("openssl req -newkey rsa:4096 -nodes -sha256 ")
-    buffer.WriteString("-keyout " + registryDir + "/" + regv1.CertKeyFile + " ")
-    buffer.WriteString("-x509 -days 1000 ")
-    buffer.WriteString("-subj \"/C=KR/ST=Seoul/O=tmax/CN=" + clusterIP + "\" ")  // [TODO]
-    buffer.WriteString("-config <(cat /etc/ssl/openssl.cnf <(printf \"[v3_ca]\\nsubjectAltName=IP:" + clusterIP + "," + serviceTypeSubject + "\")) ") // [TODO]
-    buffer.WriteString("-out " + registryDir + "/" + regv1.CertCrtFile)
+	buffer.WriteString("openssl req -newkey rsa:4096 -nodes -sha256 ")
+	buffer.WriteString("-keyout " + registryDir + "/" + regv1.CertKeyFile + " ")
+	buffer.WriteString("-x509 -days 1000 ")
+	buffer.WriteString("-subj \"/C=KR/ST=Seoul/O=tmax/CN=" + clusterIP + "\" ")                                                                       // [TODO]
+	buffer.WriteString("-config <(cat /etc/ssl/openssl.cnf <(printf \"[v3_ca]\\nsubjectAltName=IP:" + clusterIP + "," + serviceTypeSubject + "\")) ") // [TODO]
+	buffer.WriteString("-out " + registryDir + "/" + regv1.CertCrtFile)
 
-    return buffer.String()
+	return buffer.String()
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
