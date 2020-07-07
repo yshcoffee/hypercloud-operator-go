@@ -1,6 +1,8 @@
 package v1
 
 import (
+	apps "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -12,10 +14,14 @@ type RegistrySpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
-    DomainId string `json:"domainId"`
-
-    RegistryId string `json:"registryId"`
-
+	Image           string          `json:"image"`
+	Description     string          `json:"description"`
+	LoginId         string          `json:"loginId"`
+	LoginPassword   string          `json:"loginPassword"`
+	CustomConfigYml string          `json:"customConfigYml"`
+	ReplicaSet      apps.ReplicaSet `json:"replicaSet"`
+	Service         v1.Service      `json:"service"`
+	// PersistentVolumeClaim object `json:"persistentVolumeClaim"` [TODO]
 }
 
 // RegistryStatus defines the observed state of Registry
@@ -23,9 +29,24 @@ type RegistryStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+
+	Conditions     []Condition `json:"conditions"`
+	PhaseChangedAt string      `json:"phaseChangedAt"`
+	Phase          string      `json:"phase"`
+	Message        string      `json:"message"`
+	Reason         string      `json:"reason"`
+	Capacity       string      `json:"capacity"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type Condition struct {
+	LastTransitionTime string `json:"lastTransitionTime"`
+	Message            string `json:"message"`
+	Reason             string `json:"reason"`
+	Status             string `json:"status"`
+	Type               string `json:"type"`
+}
 
 // Registry is the Schema for the registries API
 // +kubebuilder:subresource:status
