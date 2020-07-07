@@ -1,6 +1,8 @@
 package v1
 
 const (
+    K8sPrefix = "hpcd-"
+
     // OpenSSL Cert File Name
     GenCertScriptFile = "genCert.sh"
     CertKeyFile = "localhub.key"

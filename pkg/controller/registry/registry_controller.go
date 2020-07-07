@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"os"
+    "bytes"
 
 	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
@@ -104,7 +105,8 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
-    createCertification(instance)
+
+    createCertification(instance, r.client)
 
 	// Define a new Pod object
 	pod := newPodForCR(instance)
@@ -135,9 +137,25 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-func createCertification(reg *regv1.Registry) {
+func createCertification(reg *regv1.Registry, client client.Client) {
     certLogger := log.WithValues("Certification Log")
-	registryDir = createDirectory(reg.Spec.DomainId, reg.Spec.RegistryId)
+    registryDir := createDirectory(reg.ObjectMeta.Namespace, reg.ObjectMeta.Name)
+
+    err = client.Get(context.TODO(), types.NamespacedName{Name: reg.ObjectMeta.Name, Namespace: reg.ObjectMet.Namespace}, reg)
+    if err != nil {
+        if errors.IsNotFound(err) {
+            certLogger.Info("Registry not found")
+            return reconcile.Result{}, err
+        }
+
+        certLogger.Info("Error while reading registry")
+        return reconcile.Result{}, err
+    }
+
+    clusterIP := reg.
+
+
+    certificateCmd := createCertificateCmd(registryDir)
     certLogger.Info("Create Certificates")
 }
 
@@ -172,6 +190,20 @@ func createDirectory(domainId string, registryId string) string {
     }
 
 	return registryDir
+}
+
+func createCertificateCmd(registrDir string) string {
+    // For Efficiency
+    var buffer bytes.Buffer
+
+    buffer.WriteString("openssl req -newkey rsa:4096 -nodes -sha256 ")
+    buffer.WriteString("-keyout " + registryDir + "/" + regv1.CertKeyFile + " ")
+    buffer.WriteString("-x509 -days 1000 ")
+    buffer.WriteString("-subj \"/C=KR/ST=Seoul/O=tmax/CN=" + clusterIP + "\" ")  // [TODO]
+    buffer.WriteString("-config <(cat /etc/ssl/openssl.cnf <(printf \"[v3_ca]\\nsubjectAltName=IP:" + clusterIP + "," + serviceTypeSubject + "\")) ") // [TODO]
+    buffer.WriteString("-out " + registryDir + "/" + regv1.CertCrtFile)
+
+    return buffer.String()
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
