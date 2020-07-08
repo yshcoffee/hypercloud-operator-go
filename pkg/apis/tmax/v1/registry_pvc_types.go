@@ -7,9 +7,17 @@ type ExistPvc struct {
 }
 
 type CreatePvc struct {
-	AccessModes      []string `json:"accessModes"`
-	StorageSize      string   `json:"storageSize"`
-	StorageClassName string   `json:"storageClassName"`
-	VolumeMode       string   `json:"volumeMode"`
-	DeleteWithPvc    bool     `json:"deleteWithPvc"`
+	// +kubebuilder:validation:Enum=ReadWriteOnce;ReadWriteMany
+	AccessModes []string `json:"accessModes"`
+
+	// enter the desired storage size (ex: 10Gi)
+	StorageSize string `json:"storageSize"`
+
+	StorageClassName string `json:"storageClassName"`
+
+	// +kubebuilder:validation:Enum=Filesystem;Block
+	VolumeMode string `json:"volumeMode,omitempty"`
+
+	// Delete the pvc as well when this registry is deleted
+	DeleteWithPvc bool `json:"deleteWithPvc,omitempty"`
 }
