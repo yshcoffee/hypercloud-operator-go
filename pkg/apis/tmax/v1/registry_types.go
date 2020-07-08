@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"google.golang.org/genproto/googleapis/type/datetime"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -53,15 +52,15 @@ type RegistryStatus struct {
 	Phase          string              `json:"phase"`
 	Message        string              `json:"message"`
 	Reason         string              `json:"reason"`
-	PhaseChangedAt datetime.DateTime   `json:"phaseChangedAt"`
+    PhaseChangedAt metav1.Time         `json:"phaseChangedAt"`
 	Capacity       string              `json:"capacity"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type RegistryCondition struct {
-	LastProbeTime      datetime.DateTime `json:"lastProbeTime"`
-	LastTransitionTime datetime.DateTime `json:"lastTransitionTime"`
+	LastProbeTime      metav1.Time `json:"lastProbeTime"`
+	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
 	Message            string            `json:"message"`
 	Reason             string            `json:"reason"`
 	Status             string            `json:"status"`
