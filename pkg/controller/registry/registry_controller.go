@@ -3,6 +3,7 @@ package registry
 import (
 	"bytes"
 	"context"
+	"reflect"
 	"os"
 
 	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
@@ -23,6 +24,8 @@ import (
 
 	// [TODO] Change into public repo
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	"hypercloud-operator-go/internal/utils"
+	"hypercloud-operator-go/internal/schemes"
 )
 
 var log = logf.Log.WithName("controller_registry")
@@ -53,6 +56,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource Registry
 	err = c.Watch(&source.Kind{Type: &tmaxv1.Registry{}}, &handler.EnqueueRequestForObject{})
+	if err != nil {
+		return err
+	}
+
+	// Watch Registry Service
+	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:	&regv1.Registry{},
+	})
 	if err != nil {
 		return err
 	}
@@ -105,6 +117,18 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
+
+	// create Service
+	regServiceInstance := schemes.Service(reg)
+	if err := controllerutil.SetControllerReference(reg, regServiceInstance, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err = utils.CheckAndCreateObject(r.client, types.NamespacedName{Name: regServiceInstance.Name,
+		Namespace: regServiceInstance.Namespace}, regServiceInstance); err != nil {
+		// [TODO] Set status of Reg?
+		return reconcile.Result{}, nil
+	}
+
 
 	//certLogger := log.WithValues("Certification Log")
 	//registryDir := createDirectory(reg.Namespace, reg.Name)
@@ -209,4 +233,13 @@ func newPodForCR(cr *tmaxv1.Registry) *corev1.Pod {
 			},
 		},
 	}
+}
+func (r *ReconcileRegistry) setStatus(cr *regv1.Registry, message string) error {
+	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.Name)
+	cr.Status.Message = message
+	if err := r.client.Status().Update(context.TODO(), cr); err != nil {
+		reqLogger.Error(err, "Unknown error updating status")
+		return err
+	}
+	return nil
 }
