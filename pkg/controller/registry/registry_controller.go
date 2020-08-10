@@ -1,15 +1,12 @@
 package registry
 
 import (
-	"bytes"
 	"context"
-	"os"
 
 	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,6 +20,8 @@ import (
 
 	// [TODO] Change into public repo
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	"hypercloud-operator-go/internal/utils"
+	"hypercloud-operator-go/internal/schemes"
 )
 
 var log = logf.Log.WithName("controller_registry")
@@ -53,6 +52,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource Registry
 	err = c.Watch(&source.Kind{Type: &tmaxv1.Registry{}}, &handler.EnqueueRequestForObject{})
+	if err != nil {
+		return err
+	}
+
+	// Watch Registry Service
+	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:	&regv1.Registry{},
+	})
 	if err != nil {
 		return err
 	}
@@ -96,7 +104,9 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	reg := &tmaxv1.Registry{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, reg)
 	if err != nil {
+		reqLogger.Info("Error on get registry")
 		if errors.IsNotFound(err) {
+			reqLogger.Info("Not Found Error")
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
@@ -106,12 +116,22 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	// create Service
+	regServiceInstance := schemes.Service(reg)
+	if err := controllerutil.SetControllerReference(reg, regServiceInstance, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err = utils.CheckAndCreateObject(r.client, types.NamespacedName{Name: regServiceInstance.Name,
+		Namespace: regServiceInstance.Namespace}, regServiceInstance); err != nil {
+		// [TODO] Set status of Reg?
+		return reconcile.Result{}, nil
+	}
+
+
 	//certLogger := log.WithValues("Certification Log")
 	//registryDir := createDirectory(reg.Namespace, reg.Name)
-
-	//certificateCmd := createCertificateCmd(registryDir)
-
 	// Define a new Pod object
+	/*
 	pod := newPodForCR(reg)
 
 	// Set Registry reg as the owner and controller
@@ -137,76 +157,16 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 
 	// Pod already exists - don't requeue
 	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	*/
 	return reconcile.Result{}, nil
 }
 
-func createDirectory(domainId string, registryId string) string {
-	certLogger := log.WithValues("Create Directory")
-	certLogger.Info("Create Cert Directory")
-
-	if _, err := os.Stat(regv1.OpenSslHomeDir); os.IsNotExist(err) {
-		// [TODO] Mode should be managed
-		os.Mkdir(regv1.OpenSslHomeDir, 0777)
-		certLogger.Info("Directory created : " + regv1.OpenSslHomeDir)
+func (r *ReconcileRegistry) setStatus(cr *regv1.Registry, message string) error {
+	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.Name)
+	cr.Status.Message = message
+	if err := r.client.Status().Update(context.TODO(), cr); err != nil {
+		reqLogger.Error(err, "Unknown error updating status")
+		return err
 	}
-
-	domainDir := regv1.OpenSslHomeDir + "/" + domainId
-	if _, err := os.Stat(domainDir); os.IsNotExist(err) {
-		// [TODO] Mode should be managed
-		os.Mkdir(domainDir, 0777)
-		certLogger.Info("Directory created : " + domainDir)
-	}
-
-	registryDir := domainDir + "/" + registryId
-	if _, err := os.Stat(registryDir); os.IsNotExist(err) {
-		// [TODO] Mode should be managed
-		os.Mkdir(registryDir, 0777)
-		certLogger.Info("Directory created : " + registryDir)
-	}
-
-	dockerLoginHome := regv1.DockerLoginHomeDir
-	if _, err := os.Stat(dockerLoginHome); os.IsNotExist(err) {
-		// [TODO] Mode should be managed
-		os.Mkdir(dockerLoginHome, 0777)
-		certLogger.Info("Directory created : " + dockerLoginHome)
-	}
-
-	return registryDir
-}
-
-func createCertificateCmd(registryDir string, clusterIP string) string {
-	// For Efficiency
-	var buffer bytes.Buffer
-
-	buffer.WriteString("openssl req -newkey rsa:4096 -nodes -sha256 ")
-	buffer.WriteString("-keyout " + registryDir + "/" + regv1.CertKeyFile + " ")
-	buffer.WriteString("-x509 -days 1000 ")
-	buffer.WriteString("-subj \"/C=KR/ST=Seoul/O=tmax/CN=" + clusterIP + "\" ")                                                                       // [TODO]
-	buffer.WriteString("-config <(cat /etc/ssl/openssl.cnf <(printf \"[v3_ca]\\nsubjectAltName=IP:" + clusterIP + "," + serviceTypeSubject + "\")) ") // [TODO]
-	buffer.WriteString("-out " + registryDir + "/" + regv1.CertCrtFile)
-
-	return buffer.String()
-}
-
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *tmaxv1.Registry) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
-	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
-	}
+	return nil
 }

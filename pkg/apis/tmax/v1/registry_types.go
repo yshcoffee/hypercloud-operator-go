@@ -40,6 +40,7 @@ type RegistryReplicaSet struct {
 }
 
 type RegistryService struct {
+	ServiceName string `json:"serviceName"` // Service Name : Ingress or LoadBalancer
 	// use ingress service type
 	Ingress Ingress `json:"ingress,omitempty"` // [TODO] One Of
 
@@ -51,9 +52,10 @@ type RegistryPVC struct {
 	// (default: /var/lib/registry)
 	MountPath string `json:"mountPath,omitempty"`
 
-	// Use the pvc you have created
+	// +kubebuilder:validation:OneOf
 	Exist ExistPvc `json:"exist,omitempty"` // [TODO] One Of
 
+	// +kubebuilder:validation:OneOf
 	Create CreatePvc `json:"create,omitempty"` // [TODO] One Of
 }
 

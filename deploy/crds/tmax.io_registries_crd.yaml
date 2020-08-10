@@ -1,8 +1,21 @@
-apiVersion: apiextensions.k8s.io/v1
+apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: registries.tmax.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.image
+    name: Image
+    type: string
+  - JSONPath: .status.capacity
+    name: Capacity
+    type: string
+  - JSONPath: .status.phase
+    name: Status
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: tmax.io
   names:
     kind: Registry
@@ -12,286 +25,276 @@ spec:
     - reg
     singular: registry
   scope: Namespaced
-  versions:
-  - additionalPrinterColumns:
-    - jsonPath: .spec.image
-      name: Image
-      type: string
-    - jsonPath: .status.capacity
-      name: Capacity
-      type: string
-    - jsonPath: .status.phase
-      name: Status
-      type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1
-    schema:
-      openAPIV3Schema:
-        description: Registry is the Schema for the registries API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          operatorStartTime:
-            type: string
-          spec:
-            description: RegistrySpec defines the desired state of Registry
-            properties:
-              customConfigYml:
-                description: The name of the configmap where the registry config.yml
-                  content
-                type: string
-              description:
-                type: string
-              domainName:
-                type: string
-              image:
-                type: string
-              loginId:
-                type: string
-              loginPassword:
-                type: string
-              persistentVolumeClaim:
-                properties:
-                  create:
-                    properties:
-                      accessModes:
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Registry is the Schema for the registries API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        operatorStartTime:
+          type: string
+        spec:
+          description: RegistrySpec defines the desired state of Registry
+          properties:
+            customConfigYml:
+              description: The name of the configmap where the registry config.yml
+                content
+              type: string
+            description:
+              type: string
+            domainName:
+              type: string
+            image:
+              type: string
+            loginId:
+              type: string
+            loginPassword:
+              type: string
+            persistentVolumeClaim:
+              properties:
+                create:
+                  properties:
+                    accessModes:
+                      items:
                         enum:
                         - ReadWriteOnce
                         - ReadWriteMany
-                        items:
-                          type: string
-                        type: array
-                      deleteWithPvc:
-                        description: Delete the pvc as well when this registry is
-                          deleted
-                        type: boolean
-                      storageClassName:
                         type: string
-                      storageSize:
-                        description: 'enter the desired storage size (ex: 10Gi)'
-                        type: string
-                      volumeMode:
-                        enum:
-                        - Filesystem
-                        - Block
-                        type: string
-                    required:
-                    - accessModes
-                    - storageClassName
-                    - storageSize
-                    type: object
-                  exist:
-                    description: Use the pvc you have created
-                    properties:
-                      pvcName:
-                        type: string
-                    required:
-                    - pvcName
-                    type: object
-                  mountPath:
-                    description: '(default: /var/lib/registry)'
-                    type: string
-                type: object
-              registryReplicaSet:
-                properties:
-                  labels:
-                    additionalProperties:
+                      type: array
+                    deleteWithPvc:
+                      description: Delete the pvc as well when this registry is deleted
+                      type: boolean
+                    storageClassName:
                       type: string
-                    type: object
-                  nodeSelector:
-                    additionalProperties:
+                    storageSize:
+                      description: 'enter the desired storage size (ex: 10Gi)'
                       type: string
-                    type: object
-                  selector:
-                    description: A label selector is a label query over a set of resources.
-                      The result of matchLabels and matchExpressions are ANDed. An
-                      empty label selector matches all objects. A null label selector
-                      matches no objects.
-                    properties:
-                      matchExpressions:
-                        description: matchExpressions is a list of label selector
-                          requirements. The requirements are ANDed.
-                        items:
-                          description: A label selector requirement is a selector
-                            that contains values, a key, and an operator that relates
-                            the key and values.
-                          properties:
-                            key:
-                              description: key is the label key that the selector
-                                applies to.
-                              type: string
-                            operator:
-                              description: operator represents a key's relationship
-                                to a set of values. Valid operators are In, NotIn,
-                                Exists and DoesNotExist.
-                              type: string
-                            values:
-                              description: values is an array of string values. If
-                                the operator is In or NotIn, the values array must
-                                be non-empty. If the operator is Exists or DoesNotExist,
-                                the values array must be empty. This array is replaced
-                                during a strategic merge patch.
-                              items:
-                                type: string
-                              type: array
-                          required:
-                          - key
-                          - operator
-                          type: object
-                        type: array
-                      matchLabels:
-                        additionalProperties:
-                          type: string
-                        description: matchLabels is a map of {key,value} pairs. A
-                          single {key,value} in the matchLabels map is equivalent
-                          to an element of matchExpressions, whose key field is "key",
-                          the operator is "In", and the values array contains only
-                          "value". The requirements are ANDed.
-                        type: object
-                    type: object
-                  tolerations:
-                    items:
-                      description: The pod this Toleration is attached to tolerates
-                        any taint that matches the triple <key,value,effect> using
-                        the matching operator <operator>.
-                      properties:
-                        effect:
-                          description: Effect indicates the taint effect to match.
-                            Empty means match all taint effects. When specified, allowed
-                            values are NoSchedule, PreferNoSchedule and NoExecute.
-                          type: string
-                        key:
-                          description: Key is the taint key that the toleration applies
-                            to. Empty means match all taint keys. If the key is empty,
-                            operator must be Exists; this combination means to match
-                            all values and all keys.
-                          type: string
-                        operator:
-                          description: Operator represents a key's relationship to
-                            the value. Valid operators are Exists and Equal. Defaults
-                            to Equal. Exists is equivalent to wildcard for value,
-                            so that a pod can tolerate all taints of a particular
-                            category.
-                          type: string
-                        tolerationSeconds:
-                          description: TolerationSeconds represents the period of
-                            time the toleration (which must be of effect NoExecute,
-                            otherwise this field is ignored) tolerates the taint.
-                            By default, it is not set, which means tolerate the taint
-                            forever (do not evict). Zero and negative values will
-                            be treated as 0 (evict immediately) by the system.
-                          format: int64
-                          type: integer
-                        value:
-                          description: Value is the taint value the toleration matches
-                            to. If the operator is Exists, the value should be empty,
-                            otherwise just a regular string.
-                          type: string
-                      type: object
-                    type: array
-                required:
-                - labels
-                - nodeSelector
-                - selector
-                - tolerations
-                type: object
-              service:
-                description: Supported service types are ingress and loadBalancer
-                properties:
-                  ingress:
-                    description: use ingress service type
-                    properties:
-                      domainName:
-                        description: '(example: 192.168.6.110.nip.io)'
-                        type: string
-                      port:
-                        description: external port. Generally use 443 port
-                        type: integer
-                    required:
-                    - domainName
-                    - port
-                    type: object
-                  loadBalancer:
-                    description: use loadBalancer service type
-                    properties:
-                      port:
-                        description: external port. Generally use 443 port
-                        type: integer
-                    required:
-                    - port
-                    type: object
-                type: object
-            required:
-            - image
-            - loginId
-            - loginPassword
-            - persistentVolumeClaim
-            - service
-            type: object
-          status:
-            description: RegistryStatus defines the observed state of Registry
-            properties:
-              capacity:
-                type: string
-              conditions:
-                items:
-                  properties:
-                    lastProbeTime:
-                      format: date-time
-                      type: string
-                    lastTransitionTime:
-                      format: date-time
-                      type: string
-                    message:
-                      type: string
-                    reason:
-                      type: string
-                    status:
-                      type: string
-                    type:
+                    volumeMode:
+                      enum:
+                      - Filesystem
+                      - Block
                       type: string
                   required:
-                  - lastProbeTime
-                  - lastTransitionTime
-                  - message
-                  - reason
-                  - status
-                  - type
+                  - accessModes
+                  - storageClassName
+                  - storageSize
                   type: object
-                type: array
-              message:
-                type: string
-              phase:
-                type: string
-              phaseChangedAt:
-                format: date-time
-                type: string
-              reason:
-                type: string
-            required:
-            - capacity
-            - conditions
-            - message
-            - phase
-            - phaseChangedAt
-            - reason
-            type: object
-        required:
-        - spec
-        type: object
+                exist:
+                  properties:
+                    pvcName:
+                      description: Use the pvc you have created
+                      type: string
+                  required:
+                  - pvcName
+                  type: object
+                mountPath:
+                  description: '(default: /var/lib/registry)'
+                  type: string
+              type: object
+            registryReplicaSet:
+              properties:
+                labels:
+                  additionalProperties:
+                    type: string
+                  type: object
+                nodeSelector:
+                  additionalProperties:
+                    type: string
+                  type: object
+                selector:
+                  description: A label selector is a label query over a set of resources.
+                    The result of matchLabels and matchExpressions are ANDed. An empty
+                    label selector matches all objects. A null label selector matches
+                    no objects.
+                  properties:
+                    matchExpressions:
+                      description: matchExpressions is a list of label selector requirements.
+                        The requirements are ANDed.
+                      items:
+                        description: A label selector requirement is a selector that
+                          contains values, a key, and an operator that relates the
+                          key and values.
+                        properties:
+                          key:
+                            description: key is the label key that the selector applies
+                              to.
+                            type: string
+                          operator:
+                            description: operator represents a key's relationship
+                              to a set of values. Valid operators are In, NotIn, Exists
+                              and DoesNotExist.
+                            type: string
+                          values:
+                            description: values is an array of string values. If the
+                              operator is In or NotIn, the values array must be non-empty.
+                              If the operator is Exists or DoesNotExist, the values
+                              array must be empty. This array is replaced during a
+                              strategic merge patch.
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - key
+                        - operator
+                        type: object
+                      type: array
+                    matchLabels:
+                      additionalProperties:
+                        type: string
+                      description: matchLabels is a map of {key,value} pairs. A single
+                        {key,value} in the matchLabels map is equivalent to an element
+                        of matchExpressions, whose key field is "key", the operator
+                        is "In", and the values array contains only "value". The requirements
+                        are ANDed.
+                      type: object
+                  type: object
+                tolerations:
+                  items:
+                    description: The pod this Toleration is attached to tolerates
+                      any taint that matches the triple <key,value,effect> using the
+                      matching operator <operator>.
+                    properties:
+                      effect:
+                        description: Effect indicates the taint effect to match. Empty
+                          means match all taint effects. When specified, allowed values
+                          are NoSchedule, PreferNoSchedule and NoExecute.
+                        type: string
+                      key:
+                        description: Key is the taint key that the toleration applies
+                          to. Empty means match all taint keys. If the key is empty,
+                          operator must be Exists; this combination means to match
+                          all values and all keys.
+                        type: string
+                      operator:
+                        description: Operator represents a key's relationship to the
+                          value. Valid operators are Exists and Equal. Defaults to
+                          Equal. Exists is equivalent to wildcard for value, so that
+                          a pod can tolerate all taints of a particular category.
+                        type: string
+                      tolerationSeconds:
+                        description: TolerationSeconds represents the period of time
+                          the toleration (which must be of effect NoExecute, otherwise
+                          this field is ignored) tolerates the taint. By default,
+                          it is not set, which means tolerate the taint forever (do
+                          not evict). Zero and negative values will be treated as
+                          0 (evict immediately) by the system.
+                        format: int64
+                        type: integer
+                      value:
+                        description: Value is the taint value the toleration matches
+                          to. If the operator is Exists, the value should be empty,
+                          otherwise just a regular string.
+                        type: string
+                    type: object
+                  type: array
+              required:
+              - labels
+              - nodeSelector
+              - selector
+              - tolerations
+              type: object
+            service:
+              description: Supported service types are ingress and loadBalancer
+              properties:
+                ingress:
+                  description: use ingress service type
+                  properties:
+                    domainName:
+                      description: '(example: 192.168.6.110.nip.io)'
+                      type: string
+                    port:
+                      description: external port. Generally use 443 port
+                      type: integer
+                  required:
+                  - domainName
+                  - port
+                  type: object
+                loadBalancer:
+                  description: use loadBalancer service type
+                  properties:
+                    port:
+                      description: external port. Generally use 443 port
+                      type: integer
+                  required:
+                  - port
+                  type: object
+                serviceName:
+                  type: string
+              required:
+              - serviceName
+              type: object
+          required:
+          - image
+          - loginId
+          - loginPassword
+          - persistentVolumeClaim
+          - service
+          type: object
+        status:
+          description: RegistryStatus defines the observed state of Registry
+          properties:
+            capacity:
+              type: string
+            conditions:
+              items:
+                properties:
+                  lastProbeTime:
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - lastProbeTime
+                - lastTransitionTime
+                - message
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+            message:
+              type: string
+            phase:
+              type: string
+            phaseChangedAt:
+              format: date-time
+              type: string
+            reason:
+              type: string
+          required:
+          - capacity
+          - conditions
+          - message
+          - phase
+          - phaseChangedAt
+          - reason
+          type: object
+      required:
+      - spec
+      type: object
+  version: v1
+  versions:
+  - name: v1
     served: true
     storage: true
-    subresources:
-      status: {}
