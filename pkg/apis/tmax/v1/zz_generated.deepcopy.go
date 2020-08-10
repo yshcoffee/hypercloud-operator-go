@@ -14,7 +14,7 @@ func (in *CreatePvc) DeepCopyInto(out *CreatePvc) {
 	*out = *in
 	if in.AccessModes != nil {
 		in, out := &in.AccessModes, &out.AccessModes
-		*out = make([]string, len(*in))
+		*out = make([]AccessMode, len(*in))
 		copy(*out, *in)
 	}
 	return

@@ -16,7 +16,7 @@ spec:
       containers:
         - name: hypercloud-operator-go
           # Replace this with the built image name
-          image: REPLACE_IMAGE
+          image: dlwlsdnjsehs/registry-operator:v0.0.1 
           command:
           - hypercloud-operator-go
           imagePullPolicy: Always

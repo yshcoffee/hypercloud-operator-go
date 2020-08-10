@@ -1,10 +1,10 @@
 apiVersion: tmax.io/v1
 kind: Registry
 metadata:
-  name: tmax4-registry
-  namespace: default
+  name: tmp-tmax-registry
+  namespace: reg-test 
 spec:
-  image: registry:2.7.1
+  image: dlwlsdnjsehs/reigstry-operator:v0.0.1 
   description: test
   loginId: tmax
   loginPassword: tmax123
@@ -15,11 +15,12 @@ spec:
     #key: node.kubernetes.io/not-ready
   #tolerationSeconds: 2147483647
   service:
-    ingress:
-      port: 0
-      domainName: 172.22.11.15.nip.io
-      #loadBalancer:
-      #port: 443
+      #ingress:
+      #port: 0
+      #domainName: 172.22.11.15.nip.io
+    serviceName: LoadBalancer
+    loadBalancer:
+      port: 443
   persistentVolumeClaim:
     mountPath: /var/lib/registry
       #exist:
