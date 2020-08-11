@@ -78,7 +78,7 @@ type RegistryCondition struct {
 	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
 	Message            string      `json:"message"`
 	Reason             string      `json:"reason"`
-	Status             string      `json:"status"`
+	Status             Status      `json:"status"`
 	Type               string      `json:"type"`
 }
 

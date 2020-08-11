@@ -3,16 +3,17 @@ package regctl
 import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 )
 
 type RegistrySubresource interface {
-	Get(client.Client, *tmaxv1.Registry) error
-	Create(client.Client, *tmaxv1.Registry) error
-	Ready(*tmaxv1.Registry) bool
-	Patch(client.Client, *tmaxv1.Registry) error
-	Update(client.Client, *tmaxv1.Registry) error
-	StatusPatch(client.Client, *tmaxv1.Registry) error
-	StatusUpdate(client.Client, *tmaxv1.Registry) error
+	GetTypeName() string
+	Get(client.Client, *regv1.Registry, *regv1.RegistryCondition) error
+	Create(client.Client, *regv1.Registry, *regv1.RegistryCondition) error
+	Ready(*regv1.Registry) bool
+	Patch(client.Client, *regv1.Registry) error
+	Update(client.Client, *regv1.Registry) error
+	StatusPatch(client.Client, *regv1.Registry, *regv1.RegistryCondition) error
+	StatusUpdate(client.Client, *regv1.Registry, *regv1.RegistryCondition) error
 }
 

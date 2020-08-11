@@ -2,7 +2,8 @@ package regctl
 
 import (
 	"context"
-	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	"hypercloud-operator-go/internal/schemes"
+	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -10,25 +11,31 @@ import (
 )
 
 type RegistryService struct {
-	svc corev1.Service
+	svc  *corev1.Service
 }
 
-func (r *RegistryService) Get(client client.Client, reg *tmaxv1.Registry) error {
+func (r* RegistryService) GetTypeName() string {
+	return regv1.ConditionTypeService
+}
+
+func (r *RegistryService) Get(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
 	req := types.NamespacedName{Name: reg.Name, Namespace: reg.Namespace}
-	svc := &corev1.Service{}
-	err := client.Get(context.TODO(), req, svc)
+	err := client.Get(context.TODO(), req, r.svc)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *RegistryService) Create(client client.Client, reg *tmaxv1.Registry) error {
-
+func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
+	r.svc = schemes.Service(reg)
+	if err := client.Create(context.TODO(), r.svc); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (r *RegistryService) Ready(reg *tmaxv1.Registry) bool {
+func (r *RegistryService) Ready(reg *regv1.Registry) bool {
 	// if reg.Spec.RegistryService.LoadBalancer == nil {
 
 	// }
@@ -39,12 +46,12 @@ func (r *RegistryService) Ready(reg *tmaxv1.Registry) bool {
 	return true
 }
 
-func (r *RegistryService) Patch(client client.Client, reg *tmaxv1.Registry) error {
+func (r *RegistryService) Patch(client client.Client, reg *regv1.Registry) error {
 
 	return nil
 }
 
-func (r *RegistryService) Update(client client.Client, reg *tmaxv1.Registry) error {
+func (r *RegistryService) Update(client client.Client, reg *regv1.Registry) error {
 	reqLogger := log.Log.WithValues("RegistryService.Namespace", reg.Namespace, "RegistryService.Name", reg.Name)
 	err := client.Status().Update(context.TODO(), reg)
 	if err != nil {
@@ -55,10 +62,10 @@ func (r *RegistryService) Update(client client.Client, reg *tmaxv1.Registry) err
 	return nil
 }
 
-func (r *RegistryService) StatusPatch(client client.Client, reg *tmaxv1.Registry) error {
+func (r *RegistryService) StatusPatch(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
 	return nil;
 }
 
-func (r *RegistryService) StatusUpdate(client client.Client, reg *tmaxv1.Registry) error {
+func (r *RegistryService) StatusUpdate(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
 	return nil;
 }

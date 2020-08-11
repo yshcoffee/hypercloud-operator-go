@@ -165,61 +165,33 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	// // certLogger := log.WithValues("Certification Log")
 	// //registryDir := createDirectory(reg.Namespace, reg.Name)
 
-	// //certificateCmd := createCertificateCmd(registryDir)
-
-	// // labels := client.MatchingLabels{
-	// // 	"key":"value",
-	// // }
-
-	// // Define a new Pod object
-	// pod := newPodForCR(reg)
-
-	// // Set Registry reg as the owner and controller
-	// if err := controllerutil.SetControllerReference(reg, pod, r.scheme); err != nil {
-	// 	return reconcile.Result{}, err
-	// }
-
-	// // Check if this Pod already exists
-	// found := &corev1.Pod{}
-	// err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	// if err != nil && errors.IsNotFound(err) {
-	// 	reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-	// 	err = r.client.Create(context.TODO(), pod)
-	// 	if err != nil {
-	// 		return reconcile.Result{}, err
-	// 	}
-
-	// 	// Pod created successfully - don't requeue
-	// 	return reconcile.Result{}, nil
-	// } else if err != nil {
-	// 	return reconcile.Result{}, err
-	// }
-
-	// Pod already exists - don't requeue
-	// reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-
 	return reconcile.Result{}, nil
 }
 func createAllSubresources(client client.Client, reg *regv1.Registry) error {
+	// [TODO] Set Owner Reference for all sub resources
+	subResourceLogger := log.WithValues("Request.Namespace", reg.Namespace, "Request.Name", reg.Name)
+	subResourceLogger.Info("Making subresources")
 	for _, subresource := range collectSubresources() {
-		/*
 		subresourceType := reflect.TypeOf(subresource).String()
-		subresourceLogger := log.Log.WithValues(subresourceType + ".Namespace", namespacedName)
-		err := subresource.Get(client, reg, condition)
-		if err != nil {
+		subResourceLogger.Info("Check subresource", subresourceType)
+		registryCondition := &regv1.RegistryCondition {
+			Status : regv1.StatusFailed,
+			Type : subresource.GetTypeName(),
+		}
+		if err := subresource.Get(client, reg, registryCondition); err != nil {
 			if errors.IsNotFound(err) {
-				err := subresource.Create(client, reg, condition)
-				subresource.StatusPatch(client, reg)
+				subResourceLogger.Info("Create subresource", subresourceType)
+				subresource.Create(client, reg, registryCondition)
 			} else {
-				subreasource.StatusPatch
+				subResourceLogger.Info("Got Error in getting subresource ", subresourceType)
 				return err
 			}
-
-			if (readycheck)
-				subresource.StatusPatch
 		}
-		*/
+		if (subresource.Ready(reg)) {
+			subresource.StatusPatch(client, reg, registryCondition)
+		}
 	}
+
 	return nil
 }
 
