@@ -2,9 +2,11 @@ package registry
 
 import (
 	"context"
+	"hypercloud-operator-go/pkg/controller/regctl"
+	"reflect"
 
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
-	"hypercloud-operator-go/pkg/model"
+	//"hypercloud-operator-go/pkg/controller/regctl"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -118,6 +120,12 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	err = createAllSubresources(r.client, reg)
+	if err != nil {
+		reqLogger.Info("Subresource creation failed")
+		return reconcile.Result{}, nil
+	}
+	/*
 	svc := model.RegistryService{}
 	pvc := model.RegistryPVC{}
 	subreses := []model.RegistrySubresource{&svc, &pvc}
@@ -128,6 +136,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 			if errors.IsNotFound(err) {
 				res.Create(r.client, reg)
 			} else {
+
 				return reconcile.Result{}, err
 			}
 		}
@@ -138,6 +147,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 			// res.StatusUpdate(r.client, reg)
 		}
 	}
+	*/
 
 	// svc := &corev1.Service{}
 	// err = r.client.Get(context.TODO(), request.NamespacedName, svc)
@@ -190,13 +200,34 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 
 	return reconcile.Result{}, nil
 }
+func createAllSubresources(client client.Client, reg *regv1.Registry) error {
+	for _, subresource := range collectSubresources() {
+		/*
+		subresourceType := reflect.TypeOf(subresource).String()
+		subresourceLogger := log.Log.WithValues(subresourceType + ".Namespace", namespacedName)
+		err := subresource.Get(client, reg, condition)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				err := subresource.Create(client, reg, condition)
+				subresource.StatusPatch(client, reg)
+			} else {
+				subreasource.StatusPatch
+				return err
+			}
 
-func (r *ReconcileRegistry) setStatus(cr *regv1.Registry, message string) error {
-	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.Name)
-	cr.Status.Message = message
-	if err := r.client.Status().Update(context.TODO(), cr); err != nil {
-		reqLogger.Error(err, "Unknown error updating status")
-		return err
+			if (readycheck)
+				subresource.StatusPatch
+		}
+		*/
 	}
 	return nil
 }
+
+func collectSubresources() []regctl.RegistrySubresource{
+	collection := []regctl.RegistrySubresource{}
+	// [TODO] Add Subresources in here
+	collection = append(collection, &regctl.RegistryService{})
+	collection = append(collection, &regctl.RegistryPVC{})
+	return collection
+}
+
