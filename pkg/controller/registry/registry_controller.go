@@ -3,25 +3,19 @@ package registry
 import (
 	"context"
 
-	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	"hypercloud-operator-go/pkg/model"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	// [TODO] Change into public repo
-	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
-	"hypercloud-operator-go/internal/utils"
-	"hypercloud-operator-go/internal/schemes"
 )
 
 var log = logf.Log.WithName("controller_registry")
@@ -51,7 +45,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource Registry
-	err = c.Watch(&source.Kind{Type: &tmaxv1.Registry{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &regv1.Registry{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -59,7 +53,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch Registry Service
 	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:	&regv1.Registry{},
+		OwnerType:    &regv1.Registry{},
 	})
 	if err != nil {
 		return err
@@ -67,9 +61,17 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Registry
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &tmaxv1.Registry{},
+		OwnerType:    &regv1.Registry{},
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &corev1.PersistentVolumeClaim{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &regv1.Registry{},
 	})
 	if err != nil {
 		return err
@@ -101,7 +103,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger.Info("Reconciling Registry")
 
 	// Fetch the Registry reg
-	reg := &tmaxv1.Registry{}
+	reg := &regv1.Registry{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, reg)
 	if err != nil {
 		reqLogger.Info("Error on get registry")
@@ -116,48 +118,76 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	// create Service
-	regServiceInstance := schemes.Service(reg)
-	if err := controllerutil.SetControllerReference(reg, regServiceInstance, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-	if err = utils.CheckAndCreateObject(r.client, types.NamespacedName{Name: regServiceInstance.Name,
-		Namespace: regServiceInstance.Namespace}, regServiceInstance); err != nil {
-		// [TODO] Set status of Reg?
-		return reconcile.Result{}, nil
-	}
+	svc := model.RegistryService{}
+	pvc := model.RegistryPVC{}
+	subreses := []model.RegistrySubresource{&svc, &pvc}
 
-
-	//certLogger := log.WithValues("Certification Log")
-	//registryDir := createDirectory(reg.Namespace, reg.Name)
-	// Define a new Pod object
-	/*
-	pod := newPodForCR(reg)
-
-	// Set Registry reg as the owner and controller
-	if err := controllerutil.SetControllerReference(reg, pod, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+	for _, res := range subreses {
+		err = res.Get(r.client, reg)
 		if err != nil {
-			return reconcile.Result{}, err
+			if errors.IsNotFound(err) {
+				res.Create(r.client, reg)
+			} else {
+				return reconcile.Result{}, err
+			}
 		}
 
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
+		if !res.Ready(reg) {
+			res.StatusUpdate(r.client, reg)
+		} else {
+			// res.StatusUpdate(r.client, reg)
+		}
 	}
 
+	// svc := &corev1.Service{}
+	// err = r.client.Get(context.TODO(), request.NamespacedName, svc)
+	// if err != nil {
+	// 	if errors.IsNotFound(err) {
+	// 		// Request object not found, could have been deleted after reconcile request.
+	// 		// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+	// 		// Return and don't requeue
+	// 		return reconcile.Result{}, nil
+	// 	}
+	// 	// Error reading the object - requeue the request.
+	// 	return reconcile.Result{}, err
+	// }
+
+	// // certLogger := log.WithValues("Certification Log")
+	// //registryDir := createDirectory(reg.Namespace, reg.Name)
+
+	// //certificateCmd := createCertificateCmd(registryDir)
+
+	// // labels := client.MatchingLabels{
+	// // 	"key":"value",
+	// // }
+
+	// // Define a new Pod object
+	// pod := newPodForCR(reg)
+
+	// // Set Registry reg as the owner and controller
+	// if err := controllerutil.SetControllerReference(reg, pod, r.scheme); err != nil {
+	// 	return reconcile.Result{}, err
+	// }
+
+	// // Check if this Pod already exists
+	// found := &corev1.Pod{}
+	// err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	// if err != nil && errors.IsNotFound(err) {
+	// 	reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+	// 	err = r.client.Create(context.TODO(), pod)
+	// 	if err != nil {
+	// 		return reconcile.Result{}, err
+	// 	}
+
+	// 	// Pod created successfully - don't requeue
+	// 	return reconcile.Result{}, nil
+	// } else if err != nil {
+	// 	return reconcile.Result{}, err
+	// }
+
 	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-	*/
+	// reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+
 	return reconcile.Result{}, nil
 }
 

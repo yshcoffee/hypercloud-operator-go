@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	RegistryTargetPort = 443
+	RegistryTargetPort   = 443
 	RegistryPortProtocol = "TCP"
-	RegistryPortName = "tls"
+	RegistryPortName     = "tls"
 )
 
 func Service(reg *regv1.Registry) *corev1.Service {
@@ -19,25 +19,24 @@ func Service(reg *regv1.Registry) *corev1.Service {
 	label := utils.GetLabel(reg)
 	label["app"] = "registry"
 	label["apps"] = regv1.K8sPrefix + reg.Name
-	return &corev1.Service {
+	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: regServiceName,
+			Name:      regServiceName,
 			Namespace: reg.Namespace,
-			Labels: label,
+			Labels:    label,
 		},
-		Spec: corev1.ServiceSpec {
+		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceType(reg.Spec.RegistryService.ServiceName),
 			Selector: map[string]string{
 				regv1.K8sPrefix + reg.Name: "lb",
 			},
 			Ports: []corev1.ServicePort{
 				{
-					Name: RegistryPortName,
+					Name:     RegistryPortName,
 					Protocol: RegistryPortProtocol,
-					Port: RegistryTargetPort,
+					Port:     RegistryTargetPort,
 				},
 			},
 		},
-
 	}
 }
