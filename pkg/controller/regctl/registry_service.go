@@ -18,7 +18,7 @@ type RegistryService struct {
 	svc *corev1.Service
 }
 
-func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
+func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, condition *status.Condition) error {
 	r.svc = schemes.Service(reg)
 	if err := client.Create(context.TODO(), r.svc); err != nil {
 		return err
@@ -35,7 +35,7 @@ func (r *RegistryService) Get(client client.Client, reg *regv1.Registry, conditi
 	return nil
 }
 
-func (r* RegistryService) GetTypeName() string {
+func (r *RegistryService) GetTypeName() string {
 	return regv1.ConditionTypeService
 }
 
@@ -61,12 +61,12 @@ func (r *RegistryService) SetOwnerReference(reg *regv1.Registry, scheme *runtime
 	return nil
 }
 
-func (r *RegistryService) StatusPatch(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
-	return nil;
+func (r *RegistryService) StatusPatch(client client.Client, reg *regv1.Registry, condition *status.Condition) error {
+	return nil
 }
 
-func (r *RegistryService) StatusUpdate(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
-	return nil;
+func (r *RegistryService) StatusUpdate(client client.Client, reg *regv1.Registry, condition *status.Condition) error {
+	return nil
 }
 
 func (r *RegistryService) Update(client client.Client, reg *regv1.Registry) error {

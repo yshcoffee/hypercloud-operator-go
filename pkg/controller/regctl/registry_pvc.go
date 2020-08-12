@@ -7,7 +7,7 @@ import (
 
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	"github.com/operator-framework/operator-sdk/pkg/status"
 	"k8s.io/apimachinery/pkg/types"
 
 	corev1 "k8s.io/api/core/v1"
@@ -31,15 +31,15 @@ func (r *RegistryPVC) Update(c client.Client, registry *regv1.Registry) error {
 	return nil
 }
 
-func (r *RegistryPVC) StatusPatch(c client.Client, registry *regv1.Registry, condition *regv1.RegistryCondition) error {
+func (r *RegistryPVC) StatusPatch(c client.Client, registry *regv1.Registry, condition *status.Condition) error {
 	return nil
 }
 
-func (r *RegistryPVC) Get(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
+func (r *RegistryPVC) Get(client client.Client, reg *regv1.Registry, condition *status.Condition) error {
 	return nil
 }
 
-func (r *RegistryPVC) Create(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
+func (r *RegistryPVC) Create(client client.Client, reg *regv1.Registry, condition *status.Condition) error {
 	r.pvc = schemes.PersistentVolumeClaim(reg)
 	client.Create(context.TODO(), r.pvc)
 	return nil
@@ -53,16 +53,16 @@ func (r *RegistryPVC) Ready(reg *regv1.Registry) bool {
 	return true
 }
 
-func (r *RegistryPVC) StatusUpdate(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
+func (r *RegistryPVC) StatusUpdate(client client.Client, reg *regv1.Registry, condition *status.Condition) error {
 	reqLogger := log.Log.WithValues("RegistryPVC.Namespace", reg.Namespace, "RegistryPVC.Name", reg.Name)
 	conditions := reg.Status.Conditions
 
 	/*
-	condition := regv1.RegistryCondition{
-		LastTransitionTime: metav1.Now(),
-	}
+		condition := status.Condition{
+			LastTransitionTime: metav1.Now(),
+		}
 
-	conditions[regv1.ConditionOrd[regv1.ConditionTypePvc]] = condition
+		conditions[regv1.ConditionOrd[regv1.ConditionTypePvc]] = condition
 	*/
 	reg.Status.Conditions = conditions
 
