@@ -41,12 +41,11 @@ type RegistryReplicaSet struct {
 }
 
 type RegistryService struct {
-	ServiceName string `json:"serviceName"` // Service Name : Ingress or LoadBalancer
 	// use ingress service type
-	Ingress Ingress `json:"ingress,omitempty"` // [TODO] One Of
+	Ingress *Ingress `json:"ingress,omitempty"`
 
 	//
-	LoadBalancer LoadBalancer `json:"loadBalancer,omitempty"` // [TODO] One Of
+	LoadBalancer *LoadBalancer `json:"loadBalancer,omitempty"`
 }
 
 type RegistryPVC struct {
@@ -73,15 +72,6 @@ type RegistryStatus struct {
 	PhaseChangedAt metav1.Time      `json:"phaseChangedAt"`
 	Capacity       string           `json:"capacity"`
 }
-
-// type RegistryCondition struct {
-// 	LastProbeTime      metav1.Time `json:"lastProbeTime"`
-// 	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
-// 	Message            string      `json:"message"`
-// 	Reason             string      `json:"reason"`
-// 	Status             Status      `json:"status"`
-// 	Type               string      `json:"type"`
-// }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
