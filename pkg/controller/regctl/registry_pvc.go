@@ -3,7 +3,13 @@ package regctl
 import (
 	"context"
 	"hypercloud-operator-go/internal/schemes"
+	"hypercloud-operator-go/internal/utils"
+
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,7 +34,6 @@ func (r *RegistryPVC) Update(c client.Client, registry *regv1.Registry) error {
 func (r *RegistryPVC) StatusPatch(c client.Client, registry *regv1.Registry, condition *regv1.RegistryCondition) error {
 	return nil
 }
-
 
 func (r *RegistryPVC) Get(client client.Client, reg *regv1.Registry, condition *regv1.RegistryCondition) error {
 	return nil
@@ -61,6 +66,13 @@ func (r *RegistryPVC) StatusUpdate(client client.Client, reg *regv1.Registry, co
 	*/
 	reg.Status.Conditions = conditions
 
+	patch := &utils.Patcher{
+		PatchType: types.JSONPatchType,
+		// DataBytes: []byte{`{"metadata":{"annotations":{"version": "v2"}}}`},
+	}
+
+	client.Status().Patch(context.TODO(), reg, patch)
+
 	err := client.Status().Update(context.TODO(), reg)
 	if err != nil {
 		reqLogger.Error(err, "Unknown error updating status")
@@ -69,4 +81,3 @@ func (r *RegistryPVC) StatusUpdate(client client.Client, reg *regv1.Registry, co
 
 	return nil
 }
-

@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -65,22 +66,22 @@ type RegistryStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 
-	Conditions     []RegistryCondition `json:"conditions"`
-	Phase          string              `json:"phase"`
-	Message        string              `json:"message"`
-	Reason         string              `json:"reason"`
-	PhaseChangedAt metav1.Time         `json:"phaseChangedAt"`
-	Capacity       string              `json:"capacity"`
+	Conditions     status.Condition `json:"conditions"`
+	Phase          string           `json:"phase"`
+	Message        string           `json:"message"`
+	Reason         string           `json:"reason"`
+	PhaseChangedAt metav1.Time      `json:"phaseChangedAt"`
+	Capacity       string           `json:"capacity"`
 }
 
-type RegistryCondition struct {
-	LastProbeTime      metav1.Time `json:"lastProbeTime"`
-	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
-	Message            string      `json:"message"`
-	Reason             string      `json:"reason"`
-	Status             Status      `json:"status"`
-	Type               string      `json:"type"`
-}
+// type RegistryCondition struct {
+// 	LastProbeTime      metav1.Time `json:"lastProbeTime"`
+// 	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
+// 	Message            string      `json:"message"`
+// 	Reason             string      `json:"reason"`
+// 	Status             Status      `json:"status"`
+// 	Type               string      `json:"type"`
+// }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

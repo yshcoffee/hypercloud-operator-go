@@ -8,6 +8,7 @@ import (
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	//"hypercloud-operator-go/pkg/controller/regctl"
 
+	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -126,27 +127,27 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, nil
 	}
 	/*
-	svc := model.RegistryService{}
-	pvc := model.RegistryPVC{}
-	subreses := []model.RegistrySubresource{&svc, &pvc}
+		svc := model.RegistryService{}
+		pvc := model.RegistryPVC{}
+		subreses := []model.RegistrySubresource{&svc, &pvc}
 
-	for _, res := range subreses {
-		err = res.Get(r.client, reg)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				res.Create(r.client, reg)
+		for _, res := range subreses {
+			err = res.Get(r.client, reg)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					res.Create(r.client, reg)
+				} else {
+
+					return reconcile.Result{}, err
+				}
+			}
+
+			if !res.Ready(reg) {
+				res.StatusUpdate(r.client, reg)
 			} else {
-
-				return reconcile.Result{}, err
+				// res.StatusUpdate(r.client, reg)
 			}
 		}
-
-		if !res.Ready(reg) {
-			res.StatusUpdate(r.client, reg)
-		} else {
-			// res.StatusUpdate(r.client, reg)
-		}
-	}
 	*/
 
 	// svc := &corev1.Service{}
@@ -174,9 +175,9 @@ func createAllSubresources(client client.Client, reg *regv1.Registry) error {
 	for _, subresource := range collectSubresources() {
 		subresourceType := reflect.TypeOf(subresource).String()
 		subResourceLogger.Info("Check subresource", subresourceType)
-		registryCondition := &regv1.RegistryCondition {
-			Status : regv1.StatusFailed,
-			Type : subresource.GetTypeName(),
+		registryCondition := &status.Condition{
+			Status: corev1.ConditionFalse,
+			Type:   status.ConditionType(subresource.GetTypeName()),
 		}
 		if err := subresource.Get(client, reg, registryCondition); err != nil {
 			if errors.IsNotFound(err) {
@@ -187,7 +188,7 @@ func createAllSubresources(client client.Client, reg *regv1.Registry) error {
 				return err
 			}
 		}
-		if (subresource.Ready(reg)) {
+		if subresource.Ready(reg) {
 			subresource.StatusPatch(client, reg, registryCondition)
 		}
 	}
@@ -195,11 +196,10 @@ func createAllSubresources(client client.Client, reg *regv1.Registry) error {
 	return nil
 }
 
-func collectSubresources() []regctl.RegistrySubresource{
+func collectSubresources() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
 	collection = append(collection, &regctl.RegistryService{})
 	collection = append(collection, &regctl.RegistryPVC{})
 	return collection
 }
-

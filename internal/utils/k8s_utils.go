@@ -31,3 +31,16 @@ func CheckAndCreateObject(client client.Client, namespacedName types.NamespacedN
 	}
 	return nil
 }
+
+type Patcher struct {
+	PatchType types.PatchType
+	DataBytes []byte
+}
+
+func (p *Patcher) Type() types.PatchType {
+	return p.PatchType
+}
+
+func (p *Patcher) Data(obj runtime.Object) ([]byte, error) {
+	return p.DataBytes, nil
+}
