@@ -40,12 +40,11 @@ type RegistryReplicaSet struct {
 }
 
 type RegistryService struct {
-	ServiceName string `json:"serviceName"` // Service Name : Ingress or LoadBalancer
 	// use ingress service type
-	Ingress Ingress `json:"ingress,omitempty"` // [TODO] One Of
+	Ingress *Ingress `json:"ingress,omitempty"`
 
 	//
-	LoadBalancer LoadBalancer `json:"loadBalancer,omitempty"` // [TODO] One Of
+	LoadBalancer *LoadBalancer `json:"loadBalancer,omitempty"`
 }
 
 type RegistryPVC struct {

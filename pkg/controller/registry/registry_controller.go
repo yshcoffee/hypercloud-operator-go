@@ -2,11 +2,9 @@ package registry
 
 import (
 	"context"
+	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
 	"reflect"
-
-	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
-	//"hypercloud-operator-go/pkg/controller/regctl"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -120,55 +118,16 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	err = createAllSubresources(r.client, reg)
+	err = createAllSubresources(r.client, reg, r.scheme)
 	if err != nil {
 		reqLogger.Info("Subresource creation failed")
 		return reconcile.Result{}, nil
 	}
-	/*
-	svc := model.RegistryService{}
-	pvc := model.RegistryPVC{}
-	subreses := []model.RegistrySubresource{&svc, &pvc}
-
-	for _, res := range subreses {
-		err = res.Get(r.client, reg)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				res.Create(r.client, reg)
-			} else {
-
-				return reconcile.Result{}, err
-			}
-		}
-
-		if !res.Ready(reg) {
-			res.StatusUpdate(r.client, reg)
-		} else {
-			// res.StatusUpdate(r.client, reg)
-		}
-	}
-	*/
-
-	// svc := &corev1.Service{}
-	// err = r.client.Get(context.TODO(), request.NamespacedName, svc)
-	// if err != nil {
-	// 	if errors.IsNotFound(err) {
-	// 		// Request object not found, could have been deleted after reconcile request.
-	// 		// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-	// 		// Return and don't requeue
-	// 		return reconcile.Result{}, nil
-	// 	}
-	// 	// Error reading the object - requeue the request.
-	// 	return reconcile.Result{}, err
-	// }
-
-	// // certLogger := log.WithValues("Certification Log")
-	// //registryDir := createDirectory(reg.Namespace, reg.Name)
 
 	return reconcile.Result{}, nil
 }
-func createAllSubresources(client client.Client, reg *regv1.Registry) error {
-	// [TODO] Set Owner Reference for all sub resources
+
+func createAllSubresources(client client.Client, reg *regv1.Registry, scheme *runtime.Scheme) error {
 	subResourceLogger := log.WithValues("Request.Namespace", reg.Namespace, "Request.Name", reg.Name)
 	subResourceLogger.Info("Making subresources")
 	for _, subresource := range collectSubresources() {
@@ -178,6 +137,7 @@ func createAllSubresources(client client.Client, reg *regv1.Registry) error {
 			Status : regv1.StatusFailed,
 			Type : subresource.GetTypeName(),
 		}
+
 		if err := subresource.Get(client, reg, registryCondition); err != nil {
 			if errors.IsNotFound(err) {
 				subResourceLogger.Info("Create subresource", subresourceType)
@@ -187,8 +147,14 @@ func createAllSubresources(client client.Client, reg *regv1.Registry) error {
 				return err
 			}
 		}
-		if (subresource.Ready(reg)) {
+
+		if subresource.Ready(reg) {
 			subresource.StatusPatch(client, reg, registryCondition)
+		}
+
+		if err := subresource.SetOwnerReference(reg, scheme); err != nil {
+			subResourceLogger.Info("Got Error in setting owner reference", subresourceType)
+			return err
 		}
 	}
 
@@ -199,7 +165,7 @@ func collectSubresources() []regctl.RegistrySubresource{
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
 	collection = append(collection, &regctl.RegistryService{})
-	collection = append(collection, &regctl.RegistryPVC{})
+	//collection = append(collection, &regctl.RegistryPVC{})
 	return collection
 }
 
