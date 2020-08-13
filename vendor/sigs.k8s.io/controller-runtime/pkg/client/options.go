@@ -475,7 +475,6 @@ type MatchingFields fields.Set
 // ApplyToList applies this configuration to the given list options.
 func (m MatchingFields) ApplyToList(opts *ListOptions) {
 	// TODO(directxman12): can we avoid re-serializing this?
-	MatchingFields.ApplyToDeleteAllOf()
 	sel := fields.Set(m).AsSelector()
 	opts.FieldSelector = sel
 }

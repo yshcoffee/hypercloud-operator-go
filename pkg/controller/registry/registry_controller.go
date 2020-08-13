@@ -103,6 +103,9 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Registry")
 
+	// [TODO] Compare spec with annotation spec
+
+
 	// Fetch the Registry reg
 	reg := &regv1.Registry{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, reg)
@@ -125,6 +128,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, nil
 	}
 
+	// [TODO] Store spec in annotation spec
 	return reconcile.Result{}, nil
 }
 
@@ -139,21 +143,12 @@ func createAllSubresources(client client.Client, reg *regv1.Registry, scheme *ru
 			Type:   status.ConditionType(subresource.GetTypeName()),
 		}
 
-		if err := subresource.Get(client, reg, registryCondition); err != nil {
-			if errors.IsNotFound(err) {
-				subResourceLogger.Info("Create subresource", subresourceType)
-				subresource.Create(client, reg, registryCondition)
-			} else {
-				subResourceLogger.Info("Got Error in getting subresource ", subresourceType)
-				return err
-			}
+		if err := subresource.Create(client, reg, registryCondition, true); err != nil {
+			subResourceLogger.Info("Got Error in creating subresource ", subresourceType)
+			return err
 		}
 
-		if subresource.Ready(reg) {
-			subresource.StatusPatch(client, reg, registryCondition)
-		}
-
-		if err := subresource.SetOwnerReference(reg, scheme); err != nil {
+		if err := subresource.SetOwnerReference(reg, scheme, true); err != nil {
 			subResourceLogger.Info("Got Error in setting owner reference", subresourceType)
 			return err
 		}

@@ -65,7 +65,7 @@ type RegistryStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 
-	Conditions     status.Condition `json:"conditions"`
+	Conditions     status.Conditions `json:"conditions"`
 	Phase          string           `json:"phase"`
 	Message        string           `json:"message"`
 	Reason         string           `json:"reason"`
