@@ -21,19 +21,19 @@ type RegistryPVC struct {
 	pvc *corev1.PersistentVolumeClaim
 }
 
-func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
+func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
 	reqLogger := log.Log.WithValues("RegistryPVC.Namespace", reg.Namespace, "RegistryPVC.Name", reg.Name)
 
+	r.pvc = schemes.PersistentVolumeClaim(reg)
 	if useGet {
 		err := r.get(c, reg, condition)
 		if err != nil && !errors.IsNotFound(err) {
 			reqLogger.Error(err, "pvc is found")
 			return err
+		} else if err == nil {
+			return err
 		}
 	}
-
-	r.pvc = schemes.PersistentVolumeClaim(reg)
-
 	reqLogger.Info("Create registry pvc", "pvc.name", r.pvc.Name, "pvc.namespace", r.pvc.Namespace)
 	err := c.Create(context.TODO(), r.pvc)
 	if err != nil {
@@ -54,7 +54,8 @@ func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *st
 
 func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry, condition *status.Condition) error {
 	reqLogger := log.Log.WithValues("RegistryPVC.Namespace", reg.Namespace, "RegistryPVC.Name", reg.Name)
-	req := types.NamespacedName{Name: regv1.K8sPrefix + reg.Name, Namespace: regv1.K8sPrefix + reg.Namespace}
+	//req := types.NamespacedName{Name: regv1.K8sPrefix + reg.Name, Namespace: regv1.K8sPrefix + reg.Namespace}
+	req := types.NamespacedName{Name: r.pvc.Name, Namespace: r.pvc.Namespace}
 
 	if r.pvc == nil {
 		r.pvc = schemes.PersistentVolumeClaim(reg)

@@ -67,7 +67,7 @@ func UpdateRegistryStatus(c client.Client, reg *regv1.Registry) bool {
 	}
 
 	// Chcck if current status is desired status. If does not same, patch the status.
-	reqLogger.Info("Chcck if current status is desired status.")
+	reqLogger.Info("Check if current status is desired status.")
 	if reg.Status.Phase == string(desiredStatus) {
 		return false
 	}

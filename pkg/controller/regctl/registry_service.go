@@ -32,18 +32,22 @@ func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, cond
 		return err
 	}
 
-	if err := r.get(client, reg, condition); err != nil {
-		if errors.IsNotFound(err) {
-			if err := client.Create(context.TODO(), r.svc); err != nil {
-				serviceLogger.Error(err, "Create Failed")
-				condition.Message = err.Error()
-				return err
-			}
-		} else {
-			serviceLogger.Error(err, "Create Failed")
-			condition.Message = err.Error()
+	if useGet {
+		err := r.get(client, reg, condition)
+		if err != nil && !errors.IsNotFound(err) {
+			serviceLogger.Error(err, "Getting Service failed")
+			return err
+		} else if err == nil {
+			serviceLogger.Info("Service already exist")
 			return err
 		}
+	}
+
+	if err := client.Create(context.TODO(), r.svc); err != nil {
+		serviceLogger.Error(err, "Create Failed")
+		condition.Status = corev1.ConditionFalse
+		condition.Message = err.Error()
+		return err
 	}
 
 	serviceLogger.Info("Succeed")
@@ -64,7 +68,7 @@ func (r *RegistryService) get(client client.Client, reg *regv1.Registry, conditi
 }
 
 func (r *RegistryService) GetTypeName() string {
-	return string(regv1.ConditionTypeService)
+	return string(ServiceTypeName)
 }
 
 func (r *RegistryService) Patch(client client.Client, reg *regv1.Registry, useGet bool) error {
@@ -97,20 +101,17 @@ func (r *RegistryService) Ready(reg *regv1.Registry, useGet bool) bool {
 	return true
 }
 
-func (r *RegistryService) SetOwnerReference(reg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.API", "SetOwnerReference")
-	if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
-		serviceLogger.Error(err, "SetOwnerReference Failed")
-		return err
-	}
-	serviceLogger.Info("Succeed")
-	return nil
-}
-
 func (r *RegistryService) StatusPatch(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
 	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
 		"RegistryService.Name", r.svc.Name, "RegistryService.API", "StatusPatch")
+
+	if useGet {
+		if err := r.get(c, reg, condition); (err != nil && !errors.IsNotFound(err)) || err == nil {
+			serviceLogger.Error(err, "Getting Service failed")
+			return err
+		}
+	}
+
 	patch := client.MergeFrom(reg)
 	target := reg.DeepCopy()
 	target.Status.Conditions.SetCondition(*condition)
@@ -119,11 +120,23 @@ func (r *RegistryService) StatusPatch(c client.Client, reg *regv1.Registry, cond
 		serviceLogger.Error(err, "StatusPatch Failed")
 		return err
 	}
+
 	serviceLogger.Info("Succeed")
 	return nil
 }
 
 func (r *RegistryService) StatusUpdate(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
+	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
+		"RegistryService.Name", r.svc.Name, "RegistryService.API", "StatusUpdate")
+
+	if useGet {
+		if err := r.get(c, reg, condition); (err != nil && !errors.IsNotFound(err)) || err == nil {
+			serviceLogger.Error(err, "Getting Service failed")
+			return err
+		}
+	}
+	//[TODO]
+
 	return nil
 }
 

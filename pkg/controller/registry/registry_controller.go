@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -101,12 +102,8 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		reqLogger.Info("Error on get registry")
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Not Found Error")
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
 
@@ -114,8 +111,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, nil
 	}
 
-	err = r.createAllSubresources(reg)
-	if err != nil {
+	if err = r.createAllSubresources(reg); err != nil {
 		reqLogger.Error(err, "Subresource creation failed")
 		return reconcile.Result{}, err
 	}
@@ -124,7 +120,6 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-//func (r *ReconcileRegistry) createAllSubresources(client client.Client, reg *regv1.Registry, scheme *runtime.Scheme) error {
 func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error {
 	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
 	subResourceLogger.Info("Creating all Subresources")
@@ -148,7 +143,7 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error {
 func collectSubresources() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	// collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryPVC{})
+	collection = append(collection, &regctl.RegistryService{})
 	collection = append(collection, &regctl.RegistryPVC{})
 	return collection
 }

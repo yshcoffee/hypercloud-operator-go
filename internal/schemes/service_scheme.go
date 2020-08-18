@@ -15,7 +15,7 @@ const (
 )
 
 func Service(reg *regv1.Registry) *corev1.Service {
-	regServiceName := utils.GetServiceName(reg)
+	regServiceName := regv1.K8sPrefix + reg.Name
 	label := utils.GetLabel(reg)
 	label["app"] = "registry"
 	label["apps"] = regv1.K8sPrefix + reg.Name

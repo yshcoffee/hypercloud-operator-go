@@ -16,8 +16,6 @@ type RegistrySubresource interface {
 	Patch(client.Client, *regv1.Registry, bool) error
 	// [TODO] If not Ready
 	Ready(*regv1.Registry, bool) bool
-	// [TODO] Dep
-	SetOwnerReference(*regv1.Registry, *runtime.Scheme, bool) error
 	StatusPatch(client.Client, *regv1.Registry, *status.Condition, bool) error
 	StatusUpdate(client.Client, *regv1.Registry, *status.Condition, bool) error
 	Update(client.Client, *regv1.Registry, bool) error
