@@ -9,10 +9,16 @@ import (
 )
 
 func PersistentVolumeClaim(reg *regv1.Registry) *corev1.PersistentVolumeClaim {
-	resName := regv1.K8sPrefix + reg.Name
+	var resName string
 	label := map[string]string{}
 	label["app"] = "registry"
 	label["apps"] = regv1.K8sPrefix + reg.Name
+
+	if reg.Spec.PersistentVolumeClaim.Exist != nil {
+		resName = reg.Spec.PersistentVolumeClaim.Exist.PvcName
+	} else {
+		resName = regv1.K8sPrefix + reg.Name
+	}
 
 	var accessModes []corev1.PersistentVolumeAccessMode
 	for _, mode := range reg.Spec.PersistentVolumeClaim.Create.AccessModes {

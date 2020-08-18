@@ -53,10 +53,10 @@ type RegistryPVC struct {
 	MountPath string `json:"mountPath,omitempty"`
 
 	// +kubebuilder:validation:OneOf
-	Exist ExistPvc `json:"exist,omitempty"` // [TODO] One Of
+	Exist *ExistPvc `json:"exist,omitempty"` // [TODO] One Of
 
 	// +kubebuilder:validation:OneOf
-	Create CreatePvc `json:"create,omitempty"` // [TODO] One Of
+	Create *CreatePvc `json:"create,omitempty"` // [TODO] One Of
 }
 
 // RegistryStatus defines the observed state of Registry
@@ -66,11 +66,11 @@ type RegistryStatus struct {
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 
 	Conditions     status.Conditions `json:"conditions"`
-	Phase          string           `json:"phase"`
-	Message        string           `json:"message"`
-	Reason         string           `json:"reason"`
-	PhaseChangedAt metav1.Time      `json:"phaseChangedAt"`
-	Capacity       string           `json:"capacity"`
+	Phase          string            `json:"phase"`
+	Message        string            `json:"message"`
+	Reason         string            `json:"reason"`
+	PhaseChangedAt metav1.Time       `json:"phaseChangedAt"`
+	Capacity       string            `json:"capacity"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

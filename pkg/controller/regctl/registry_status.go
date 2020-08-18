@@ -26,8 +26,8 @@ func UpdateRegistryStatus(c client.Client, reg *regv1.Registry) bool {
 	reqLogger.Info("Check if status fields are normal.")
 	for _, t := range checkTypes {
 		if reg.Status.Conditions.IsUnknownFor(t) {
-			reqLogger.Info("Init")
-			InitRegistry(c, reg)
+			reqLogger.Info("Initialize status fields")
+			InitRegistryStatus(c, reg)
 
 			if reg.Status.Phase == string(regv1.StatusCreating) {
 				reqLogger.Info("status fields are abnormal. Initialize the registry status.")
@@ -101,7 +101,7 @@ func UpdateRegistryStatus(c client.Client, reg *regv1.Registry) bool {
 	return true
 }
 
-func InitRegistry(c client.Client, reg *regv1.Registry) {
+func InitRegistryStatus(c client.Client, reg *regv1.Registry) {
 	reqLogger := logf.Log.WithName("controller_registry").WithValues("Request.Namespace", reg.Namespace, "Request.Name", reg.Name)
 
 	if reg.Status.Conditions == nil {

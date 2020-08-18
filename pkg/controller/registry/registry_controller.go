@@ -2,13 +2,15 @@ package registry
 
 import (
 	"context"
-	"github.com/operator-framework/operator-sdk/pkg/status"
+	"reflect"
+
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
+
+	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -120,7 +122,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error {
+func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { // if want to requeue, return true
 	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
 	subResourceLogger.Info("Creating all Subresources")
 	for _, subresource := range collectSubresources() {
@@ -133,8 +135,21 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error {
 
 		if err := subresource.Create(r.client, reg, registryCondition, r.scheme, true); err != nil {
 			subResourceLogger.Info("Got Error in creating subresource ")
+			subresource.StatusPatch(r.client, reg, registryCondition, true)
 			return err
 		}
+
+		if subresource.Ready(reg, true) {
+			registryCondition.Status = corev1.ConditionTrue
+			subresource.StatusPatch(r.client, reg, registryCondition, false)
+			return nil
+		} else {
+			registryCondition.Status = corev1.ConditionFalse
+			subresource.StatusPatch(r.client, reg, registryCondition, false)
+
+			return nil
+		}
+
 	}
 
 	return nil

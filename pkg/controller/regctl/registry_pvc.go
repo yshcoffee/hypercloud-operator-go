@@ -28,21 +28,33 @@ func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *st
 	if useGet {
 		err := r.get(c, reg, condition)
 		if err != nil && !errors.IsNotFound(err) {
-			reqLogger.Error(err, "pvc is found")
+			reqLogger.Error(err, "pvc is error")
 			return err
 		} else if err == nil {
 			return err
 		}
 	}
+
+	if reg.Spec.PersistentVolumeClaim.Exist != nil {
+		reqLogger.Info("Use exist registry pvc", "pvc.name", r.pvc.Name, "pvc.namespace", r.pvc.Namespace)
+		return nil
+	}
+
+	if err := controllerutil.SetControllerReference(reg, r.pvc, scheme); err != nil {
+		reqLogger.Error(err, "SetOwnerReference Failed")
+		return err
+	}
+
 	reqLogger.Info("Create registry pvc", "pvc.name", r.pvc.Name, "pvc.namespace", r.pvc.Namespace)
 	err := c.Create(context.TODO(), r.pvc)
 	if err != nil {
 		if condition == nil {
 			condition = &status.Condition{
-				Status: corev1.ConditionFalse,
-				Type:   status.ConditionType(regv1.ConditionTypePvc),
+				Type: status.ConditionType(regv1.ConditionTypePvc),
 			}
 		}
+
+		condition.Status = corev1.ConditionFalse
 		condition.Message = err.Error()
 
 		reqLogger.Error(err, "Creating registry pvc is failed.")
@@ -54,12 +66,12 @@ func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *st
 
 func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry, condition *status.Condition) error {
 	reqLogger := log.Log.WithValues("RegistryPVC.Namespace", reg.Namespace, "RegistryPVC.Name", reg.Name)
-	//req := types.NamespacedName{Name: regv1.K8sPrefix + reg.Name, Namespace: regv1.K8sPrefix + reg.Namespace}
-	req := types.NamespacedName{Name: r.pvc.Name, Namespace: r.pvc.Namespace}
 
-	if r.pvc == nil {
+	if r.pvc != nil {
 		r.pvc = schemes.PersistentVolumeClaim(reg)
 	}
+
+	req := types.NamespacedName{Name: r.pvc.Name, Namespace: r.pvc.Namespace}
 
 	err := c.Get(context.TODO(), req, r.pvc)
 	if err != nil {
@@ -84,13 +96,6 @@ func (r *RegistryPVC) Ready(reg *regv1.Registry, useGet bool) bool {
 	}
 
 	return true
-}
-
-func (r *RegistryPVC) SetOwnerReference(reg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	if err := controllerutil.SetControllerReference(reg, r.pvc, scheme); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *RegistryPVC) StatusPatch(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
