@@ -24,14 +24,14 @@ type RegistryService struct {
 }
 
 func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
-	r.svc = schemes.Service(reg)
+	if r.svc == nil {
+		r.svc = schemes.Service(reg)
+		if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
+			return err
+		}
+	}
 	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
 		"RegistryService.Name", r.svc.Name, "RegistryService.Api", "Create")
-
-	if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
-		serviceLogger.Error(err, "SetOwnerReference Failed")
-		return err
-	}
 
 	if useGet {
 		err := r.get(client, reg, condition)
@@ -76,7 +76,7 @@ func (r *RegistryService) Patch(client client.Client, reg *regv1.Registry, useGe
 	return nil
 }
 
-func (r *RegistryService) Ready(reg *regv1.Registry, useGet bool) bool {
+func (r *RegistryService) Ready(reg *regv1.Registry, useGet bool) error {
 	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
 		"RegistryService.Name", r.svc.Name, "RegistryService.API", "Ready")
 	if r.svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
@@ -91,15 +91,15 @@ func (r *RegistryService) Ready(reg *regv1.Registry, useGet bool) bool {
 			}
 		} else {
 			// Several Ingress
-			return false
+			return regv1.MakeRegistryError(regv1.NotReady)
 		}
-		serviceLogger.Info("LoadBalancer IP", lbIP)
+		serviceLogger.Info("LoadBalancer info", "LoadBalancer IP", lbIP)
 	} else if r.svc.Spec.Type == corev1.ServiceTypeClusterIP {
 		serviceLogger.Info("Service Type is ClusterIp")
 		// [TODO]
 	}
-
-	return true
+	serviceLogger.Info("Succeed")
+	return regv1.MakeRegistryError(regv1.Running)
 }
 
 func (r *RegistryService) StatusPatch(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {

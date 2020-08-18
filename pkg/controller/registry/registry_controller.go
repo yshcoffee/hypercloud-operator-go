@@ -2,10 +2,9 @@ package registry
 
 import (
 	"context"
-	"reflect"
-
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
+	"reflect"
 
 	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
@@ -139,14 +138,14 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 			return err
 		}
 
-		if subresource.Ready(reg, true) {
+		err := subresource.Ready(reg, true)
+		if err.Error() == regv1.Running {
 			registryCondition.Status = corev1.ConditionTrue
 			subresource.StatusPatch(r.client, reg, registryCondition, false)
 			return nil
 		} else {
 			registryCondition.Status = corev1.ConditionFalse
 			subresource.StatusPatch(r.client, reg, registryCondition, false)
-
 			return nil
 		}
 
@@ -159,6 +158,6 @@ func collectSubresources() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
 	collection = append(collection, &regctl.RegistryService{})
-	collection = append(collection, &regctl.RegistryPVC{})
+	//collection = append(collection, &regctl.RegistryPVC{})
 	return collection
 }

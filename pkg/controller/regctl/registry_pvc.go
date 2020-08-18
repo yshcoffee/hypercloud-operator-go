@@ -90,12 +90,12 @@ func (r *RegistryPVC) Patch(c client.Client, reg *regv1.Registry, useGet bool) e
 	return nil
 }
 
-func (r *RegistryPVC) Ready(reg *regv1.Registry, useGet bool) bool {
+func (r *RegistryPVC) Ready(reg *regv1.Registry, useGet bool) error {
 	if string(r.pvc.Status.Phase) == "pending" {
-		return false
+		return nil
 	}
 
-	return true
+	return nil
 }
 
 func (r *RegistryPVC) StatusPatch(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
