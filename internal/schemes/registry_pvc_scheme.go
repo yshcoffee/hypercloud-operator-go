@@ -15,7 +15,7 @@ func PersistentVolumeClaim(reg *regv1.Registry) *corev1.PersistentVolumeClaim {
 	label["apps"] = regv1.K8sPrefix + reg.Name
 
 	var accessModes []corev1.PersistentVolumeAccessMode
-	for mode := range reg.Spec.PersistentVolumeClaim.Create.AccessModes {
+	for _, mode := range reg.Spec.PersistentVolumeClaim.Create.AccessModes {
 		accessModes = append(accessModes, corev1.PersistentVolumeAccessMode(mode))
 	}
 
@@ -31,6 +31,9 @@ func PersistentVolumeClaim(reg *regv1.Registry) *corev1.PersistentVolumeClaim {
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: accessModes,
 			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse(reg.Spec.PersistentVolumeClaim.Create.StorageSize),
+				},
 				Limits: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse(reg.Spec.PersistentVolumeClaim.Create.StorageSize),
 				},

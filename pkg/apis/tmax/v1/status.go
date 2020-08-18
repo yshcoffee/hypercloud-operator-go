@@ -1,34 +1,26 @@
 package v1
 
+import "github.com/operator-framework/operator-sdk/pkg/status"
+
 type Status string
 
 const (
 	StatusSucceeded = Status("Succeeded")
-	StatusReady     = Status("Ready")
 	StatusFailed    = Status("Failed")
+	StatusReady     = Status("Ready")
+	StatusNotReady  = Status("NotReady")
 	StatusRunning   = Status("Running")
 	StatusPending   = Status("Pending")
 	StatusSkipped   = Status("Skipped")
+	StatusCreating  = Status("Creating")
 
-	ConditionTypeReplicaSet             = "ReplicaSetExist"
-	ConditionTypePod                    = "PodRunning"
-	ConditionTypeService                = "ServiceExist"
-	ConditionTypeSecretOpaque           = "SecretOpaqueExist"
-	ConditionTypeSecretDockerConfigJson = "SecretDockerConfigJsonExist"
-	ConditionTypeSecretTls              = "SecretTlsExist"
-	ConditionTypeIngress                = "IngressExist"
-	ConditionTypePvc                    = "PvcExist"
-	ConditionTypeConfigMap              = "ConfigMapExist"
+	ConditionTypeReplicaSet             = status.ConditionType("ReplicaSetExist")
+	ConditionTypePod                    = status.ConditionType("PodRunning")
+	ConditionTypeService                = status.ConditionType("ServiceExist")
+	ConditionTypeSecretOpaque           = status.ConditionType("SecretOpaqueExist")
+	ConditionTypeSecretDockerConfigJson = status.ConditionType("SecretDockerConfigJsonExist")
+	ConditionTypeSecretTls              = status.ConditionType("SecretTlsExist")
+	ConditionTypeIngress                = status.ConditionType("IngressExist")
+	ConditionTypePvc                    = status.ConditionType("PvcExist")
+	ConditionTypeConfigMap              = status.ConditionType("ConfigMapExist")
 )
-
-var ConditionOrd = map[string]int{
-	ConditionTypeReplicaSet:             0,
-	ConditionTypePod:                    1,
-	ConditionTypeService:                2,
-	ConditionTypeSecretOpaque:           3,
-	ConditionTypeSecretDockerConfigJson: 4,
-	ConditionTypeSecretTls:              5,
-	ConditionTypeIngress:                6,
-	ConditionTypePvc:                    7,
-	ConditionTypeConfigMap:              8,
-}

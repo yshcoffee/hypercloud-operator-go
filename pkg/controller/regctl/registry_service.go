@@ -45,7 +45,7 @@ func (r *RegistryService) get(client client.Client, reg *regv1.Registry, conditi
 }
 
 func (r *RegistryService) GetTypeName() string {
-	return ServiceTypeName
+	return string(regv1.ConditionTypeService)
 }
 
 func (r *RegistryService) Patch(client client.Client, reg *regv1.Registry, useGet bool) error {
@@ -60,7 +60,7 @@ func (r *RegistryService) Ready(reg *regv1.Registry, useGet bool) bool {
 		lbIP := ""
 		// [TODO] Specific Condition is needed
 		if len(loadBalancer.Ingress) == 1 {
-			if loadBalancer.Ingress[0].Hostname  == "" {
+			if loadBalancer.Ingress[0].Hostname == "" {
 				lbIP = loadBalancer.Ingress[0].IP
 			} else {
 				lbIP = loadBalancer.Ingress[0].Hostname

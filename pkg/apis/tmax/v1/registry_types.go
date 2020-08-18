@@ -87,7 +87,7 @@ type Registry struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   RegistrySpec   `json:"spec"`
-	Status RegistryStatus `json:"status,omitempty"`
+	Status RegistryStatus `json:"status"`
 
 	OperatorStartTime string `json:"operatorStartTime,omitempty"`
 }

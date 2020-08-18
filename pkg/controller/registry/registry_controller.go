@@ -51,15 +51,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch Registry Service
-	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &regv1.Registry{},
-	})
-	if err != nil {
-		return err
-	}
-
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Registry
 	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
@@ -105,7 +96,6 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 
 	// [TODO] Compare spec with annotation spec
 
-
 	// Fetch the Registry reg
 	reg := &regv1.Registry{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, reg)
@@ -122,10 +112,14 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
+	if regctl.UpdateRegistryStatus(r.client, reg) {
+		return reconcile.Result{}, nil
+	}
+
 	err = createAllSubresources(r.client, reg, r.scheme)
 	if err != nil {
-		reqLogger.Info("Subresource creation failed")
-		return reconcile.Result{}, nil
+		reqLogger.Error(err, "Subresource creation failed")
+		return reconcile.Result{}, err
 	}
 
 	// [TODO] Store spec in annotation spec
@@ -137,19 +131,19 @@ func createAllSubresources(client client.Client, reg *regv1.Registry, scheme *ru
 	subResourceLogger.Info("Making subresources")
 	for _, subresource := range collectSubresources() {
 		subresourceType := reflect.TypeOf(subresource).String()
-		subResourceLogger.Info("Check subresource", subresourceType)
+		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
 		registryCondition := &status.Condition{
 			Status: corev1.ConditionFalse,
 			Type:   status.ConditionType(subresource.GetTypeName()),
 		}
 
 		if err := subresource.Create(client, reg, registryCondition, true); err != nil {
-			subResourceLogger.Info("Got Error in creating subresource ", subresourceType)
+			subResourceLogger.Info("Got Error in creating subresource ", "subresourceType", subresourceType)
 			return err
 		}
 
 		if err := subresource.SetOwnerReference(reg, scheme, true); err != nil {
-			subResourceLogger.Info("Got Error in setting owner reference", subresourceType)
+			subResourceLogger.Info("Got Error in setting owner reference", "subresourceType", subresourceType)
 			return err
 		}
 	}
@@ -160,7 +154,7 @@ func createAllSubresources(client client.Client, reg *regv1.Registry, scheme *ru
 func collectSubresources() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	collection = append(collection, &regctl.RegistryService{})
-	//collection = append(collection, &regctl.RegistryPVC{})
+	// collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryPVC{})
+	collection = append(collection, &regctl.RegistryPVC{})
 	return collection
 }
