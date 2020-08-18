@@ -2,11 +2,9 @@ package registry
 
 import (
 	"context"
+	"github.com/operator-framework/operator-sdk/pkg/status"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
-	"reflect"
-
-	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -116,7 +114,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, nil
 	}
 
-	err = createAllSubresources(r.client, reg, r.scheme)
+	err = r.createAllSubresources(reg)
 	if err != nil {
 		reqLogger.Error(err, "Subresource creation failed")
 		return reconcile.Result{}, err
@@ -126,9 +124,10 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-func createAllSubresources(client client.Client, reg *regv1.Registry, scheme *runtime.Scheme) error {
-	subResourceLogger := log.WithValues("Request.Namespace", reg.Namespace, "Request.Name", reg.Name)
-	subResourceLogger.Info("Making subresources")
+//func (r *ReconcileRegistry) createAllSubresources(client client.Client, reg *regv1.Registry, scheme *runtime.Scheme) error {
+func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error {
+	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
+	subResourceLogger.Info("Creating all Subresources")
 	for _, subresource := range collectSubresources() {
 		subresourceType := reflect.TypeOf(subresource).String()
 		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
@@ -137,13 +136,8 @@ func createAllSubresources(client client.Client, reg *regv1.Registry, scheme *ru
 			Type:   status.ConditionType(subresource.GetTypeName()),
 		}
 
-		if err := subresource.Create(client, reg, registryCondition, true); err != nil {
-			subResourceLogger.Info("Got Error in creating subresource ", "subresourceType", subresourceType)
-			return err
-		}
-
-		if err := subresource.SetOwnerReference(reg, scheme, true); err != nil {
-			subResourceLogger.Info("Got Error in setting owner reference", "subresourceType", subresourceType)
+		if err := subresource.Create(r.client, reg, registryCondition, r.scheme, true); err != nil {
+			subResourceLogger.Info("Got Error in creating subresource ")
 			return err
 		}
 	}

@@ -9,13 +9,14 @@ import (
 )
 
 type RegistrySubresource interface {
-	Create(client.Client, *regv1.Registry, *status.Condition, bool) error
+	Create(client.Client, *regv1.Registry, *status.Condition, *runtime.Scheme, bool) error
 	//Get(client.Client, *regv1.Registry, *status.Condition) error
 	get(client.Client, *regv1.Registry, *status.Condition) error
 	GetTypeName() string
 	Patch(client.Client, *regv1.Registry, bool) error
 	// [TODO] If not Ready
 	Ready(*regv1.Registry, bool) bool
+	// [TODO] Dep
 	SetOwnerReference(*regv1.Registry, *runtime.Scheme, bool) error
 	StatusPatch(client.Client, *regv1.Registry, *status.Condition, bool) error
 	StatusUpdate(client.Client, *regv1.Registry, *status.Condition, bool) error

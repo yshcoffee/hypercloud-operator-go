@@ -4,6 +4,7 @@ import (
 	"context"
 	"hypercloud-operator-go/internal/schemes"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
@@ -21,26 +22,44 @@ type RegistryService struct {
 	//[TODO] Logging
 }
 
-func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
-	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.API", "Create")
+func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
 	r.svc = schemes.Service(reg)
-	if err := client.Create(context.TODO(), r.svc); err != nil {
-		serviceLogger.Error(err, "Create Failed")
-		condition.Message = err.Error()
+	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
+		"RegistryService.Name", r.svc.Name, "RegistryService.Api", "Create")
+
+	if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
+		serviceLogger.Error(err, "SetOwnerReference Failed")
 		return err
 	}
+
+	if err := r.get(client, reg, condition); err != nil {
+		if errors.IsNotFound(err) {
+			if err := client.Create(context.TODO(), r.svc); err != nil {
+				serviceLogger.Error(err, "Create Failed")
+				condition.Message = err.Error()
+				return err
+			}
+		} else {
+			serviceLogger.Error(err, "Create Failed")
+			condition.Message = err.Error()
+			return err
+		}
+	}
+
+	serviceLogger.Info("Succeed")
 	return nil
 }
 
 func (r *RegistryService) get(client client.Client, reg *regv1.Registry, condition *status.Condition) error {
 	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.API", "Get")
-	req := types.NamespacedName{Name: reg.Name, Namespace: reg.Namespace}
+		"RegistryService.Name", r.svc.Name, "RegistryService.API", "get")
+	req := types.NamespacedName{Name: r.svc.Name, Namespace: r.svc.Namespace}
 	if err := client.Get(context.TODO(), req, r.svc); err != nil {
 		serviceLogger.Error(err, "Get Failed")
 		condition.Message = err.Error()
+		return err
 	}
+	serviceLogger.Info("Succeed")
 	return nil
 }
 
@@ -85,6 +104,7 @@ func (r *RegistryService) SetOwnerReference(reg *regv1.Registry, scheme *runtime
 		serviceLogger.Error(err, "SetOwnerReference Failed")
 		return err
 	}
+	serviceLogger.Info("Succeed")
 	return nil
 }
 
@@ -99,6 +119,7 @@ func (r *RegistryService) StatusPatch(c client.Client, reg *regv1.Registry, cond
 		serviceLogger.Error(err, "StatusPatch Failed")
 		return err
 	}
+	serviceLogger.Info("Succeed")
 	return nil
 }
 
@@ -113,5 +134,6 @@ func (r *RegistryService) Update(c client.Client, reg *regv1.Registry, useGet bo
 		serviceLogger.Error(err, "Update Failed")
 		return err
 	}
+	serviceLogger.Info("Succeed")
 	return nil
 }
