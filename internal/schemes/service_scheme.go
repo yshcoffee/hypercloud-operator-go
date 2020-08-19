@@ -15,10 +15,14 @@ const (
 )
 
 func Service(reg *regv1.Registry) *corev1.Service {
-	regServiceName := utils.GetServiceName(reg)
+	regServiceName := regv1.K8sPrefix + reg.Name
 	label := utils.GetLabel(reg)
 	label["app"] = "registry"
 	label["apps"] = regv1.K8sPrefix + reg.Name
+	serviceName := "Ingress"
+	if reg.Spec.RegistryService.Ingress == nil {
+		serviceName = "LoadBalancer"
+	}
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      regServiceName,
@@ -26,7 +30,7 @@ func Service(reg *regv1.Registry) *corev1.Service {
 			Labels:    label,
 		},
 		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceType(reg.Spec.RegistryService.ServiceName),
+			Type: corev1.ServiceType(serviceName),
 			Selector: map[string]string{
 				regv1.K8sPrefix + reg.Name: "lb",
 			},

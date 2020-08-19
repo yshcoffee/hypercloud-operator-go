@@ -2,10 +2,11 @@ package registry
 
 import (
 	"context"
-
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
-	"hypercloud-operator-go/pkg/model"
+	"hypercloud-operator-go/pkg/controller/regctl"
+	"reflect"
 
+	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,15 +47,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource Registry
 	err = c.Watch(&source.Kind{Type: &regv1.Registry{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// Watch Registry Service
-	err = c.Watch(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &regv1.Registry{},
-	})
 	if err != nil {
 		return err
 	}
@@ -102,6 +94,8 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Registry")
 
+	// [TODO] Compare spec with annotation spec
+
 	// Fetch the Registry reg
 	reg := &regv1.Registry{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, reg)
@@ -109,94 +103,59 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		reqLogger.Info("Error on get registry")
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Not Found Error")
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
-		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
 
-	svc := model.RegistryService{}
-	pvc := model.RegistryPVC{}
-	subreses := []model.RegistrySubresource{&svc, &pvc}
-
-	for _, res := range subreses {
-		err = res.Get(r.client, reg)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				res.Create(r.client, reg)
-			} else {
-				return reconcile.Result{}, err
-			}
-		}
-
-		if !res.Ready(reg) {
-			res.StatusUpdate(r.client, reg)
-		} else {
-			// res.StatusUpdate(r.client, reg)
-		}
+	if regctl.UpdateRegistryStatus(r.client, reg) {
+		return reconcile.Result{}, nil
 	}
 
-	// svc := &corev1.Service{}
-	// err = r.client.Get(context.TODO(), request.NamespacedName, svc)
-	// if err != nil {
-	// 	if errors.IsNotFound(err) {
-	// 		// Request object not found, could have been deleted after reconcile request.
-	// 		// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-	// 		// Return and don't requeue
-	// 		return reconcile.Result{}, nil
-	// 	}
-	// 	// Error reading the object - requeue the request.
-	// 	return reconcile.Result{}, err
-	// }
+	if err = r.createAllSubresources(reg); err != nil {
+		reqLogger.Error(err, "Subresource creation failed")
+		return reconcile.Result{}, err
+	}
 
-	// // certLogger := log.WithValues("Certification Log")
-	// //registryDir := createDirectory(reg.Namespace, reg.Name)
-
-	// //certificateCmd := createCertificateCmd(registryDir)
-
-	// // labels := client.MatchingLabels{
-	// // 	"key":"value",
-	// // }
-
-	// // Define a new Pod object
-	// pod := newPodForCR(reg)
-
-	// // Set Registry reg as the owner and controller
-	// if err := controllerutil.SetControllerReference(reg, pod, r.scheme); err != nil {
-	// 	return reconcile.Result{}, err
-	// }
-
-	// // Check if this Pod already exists
-	// found := &corev1.Pod{}
-	// err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	// if err != nil && errors.IsNotFound(err) {
-	// 	reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-	// 	err = r.client.Create(context.TODO(), pod)
-	// 	if err != nil {
-	// 		return reconcile.Result{}, err
-	// 	}
-
-	// 	// Pod created successfully - don't requeue
-	// 	return reconcile.Result{}, nil
-	// } else if err != nil {
-	// 	return reconcile.Result{}, err
-	// }
-
-	// Pod already exists - don't requeue
-	// reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-
+	// [TODO] Store spec in annotation spec
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileRegistry) setStatus(cr *regv1.Registry, message string) error {
-	reqLogger := log.WithValues("Request.Namespace", cr.Namespace, "Request.Name", cr.Name)
-	cr.Status.Message = message
-	if err := r.client.Status().Update(context.TODO(), cr); err != nil {
-		reqLogger.Error(err, "Unknown error updating status")
-		return err
+func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { // if want to requeue, return true
+	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
+	subResourceLogger.Info("Creating all Subresources")
+	for _, subresource := range collectSubresources() {
+		subresourceType := reflect.TypeOf(subresource).String()
+		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
+		registryCondition := &status.Condition{
+			Status: corev1.ConditionFalse,
+			Type:   status.ConditionType(subresource.GetTypeName()),
+		}
+
+		if err := subresource.Create(r.client, reg, registryCondition, r.scheme, true); err != nil {
+			subResourceLogger.Info("Got Error in creating subresource ")
+			subresource.StatusPatch(r.client, reg, registryCondition, true)
+			return err
+		}
+
+		err := subresource.Ready(reg, true)
+		if err != nil && err.Error() == regv1.NotReady {
+			registryCondition.Status = corev1.ConditionFalse
+			subresource.StatusPatch(r.client, reg, registryCondition, false)
+			return err
+		} else {
+			registryCondition.Status = corev1.ConditionTrue
+			subresource.StatusPatch(r.client, reg, registryCondition, false)
+		}
 	}
+
 	return nil
+}
+
+func collectSubresources() []regctl.RegistrySubresource {
+	collection := []regctl.RegistrySubresource{}
+	// [TODO] Add Subresources in here
+	// collection = append(collection, &regctl.RegistryService{})
+	collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{})
+	return collection
 }
