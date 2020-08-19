@@ -73,6 +73,7 @@ func (r *RegistryService) GetTypeName() string {
 }
 
 func (r *RegistryService) Patch(client client.Client, reg *regv1.Registry, useGet bool) error {
+	// [TODO]
 	return nil
 }
 
@@ -130,13 +131,20 @@ func (r *RegistryService) StatusUpdate(c client.Client, reg *regv1.Registry, con
 	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
 		"RegistryService.Name", r.svc.Name, "RegistryService.API", "StatusUpdate")
 
+	// [TODO] Why this condition needed?
 	if useGet {
 		if err := r.get(c, reg, condition); (err != nil && !errors.IsNotFound(err)) || err == nil {
 			serviceLogger.Error(err, "Getting Service failed")
 			return err
 		}
 	}
-	//[TODO]
+
+	registryCondition := reg.Status.Conditions.GetCondition(ServiceTypeName)
+	condition.DeepCopyInto(registryCondition);
+	if err := c.Status().Update(context.TODO(), reg); err != nil {
+		serviceLogger.Error(err, "Update Failed")
+		return err
+	}
 
 	return nil
 }
@@ -144,6 +152,8 @@ func (r *RegistryService) StatusUpdate(c client.Client, reg *regv1.Registry, con
 func (r *RegistryService) Update(c client.Client, reg *regv1.Registry, useGet bool) error {
 	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
 		"RegistryService.Name", r.svc.Name, "RegistryService.API", "Update")
+
+	// [TODO] Is this Spec update?
 	if err := c.Status().Update(context.TODO(), reg); err != nil {
 		serviceLogger.Error(err, "Update Failed")
 		return err
