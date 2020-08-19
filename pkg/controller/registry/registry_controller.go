@@ -139,16 +139,14 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 		}
 
 		err := subresource.Ready(reg, true)
-		if err.Error() == regv1.Running {
-			registryCondition.Status = corev1.ConditionTrue
-			subresource.StatusPatch(r.client, reg, registryCondition, false)
-			return nil
-		} else {
+		if err != nil && err.Error() == regv1.NotReady {
 			registryCondition.Status = corev1.ConditionFalse
 			subresource.StatusPatch(r.client, reg, registryCondition, false)
-			return nil
+			return err
+		} else {
+			registryCondition.Status = corev1.ConditionTrue
+			subresource.StatusPatch(r.client, reg, registryCondition, false)
 		}
-
 	}
 
 	return nil
@@ -157,7 +155,7 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 func collectSubresources() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	collection = append(collection, &regctl.RegistryService{})
-	//collection = append(collection, &regctl.RegistryPVC{})
+	// collection = append(collection, &regctl.RegistryService{})
+	collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{})
 	return collection
 }

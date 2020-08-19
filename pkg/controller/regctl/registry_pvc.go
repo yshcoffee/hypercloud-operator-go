@@ -22,9 +22,9 @@ type RegistryPVC struct {
 }
 
 func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
-	reqLogger := log.Log.WithValues("RegistryPVC.Namespace", reg.Namespace, "RegistryPVC.Name", reg.Name)
-
 	r.pvc = schemes.PersistentVolumeClaim(reg)
+	reqLogger := log.Log.WithValues("RegistryPVC.Namespace", r.pvc.Namespace, "RegistryPVC.Name", r.pvc.Name)
+
 	if useGet {
 		err := r.get(c, reg, condition)
 		if err != nil && !errors.IsNotFound(err) {
@@ -92,7 +92,7 @@ func (r *RegistryPVC) Patch(c client.Client, reg *regv1.Registry, useGet bool) e
 
 func (r *RegistryPVC) Ready(reg *regv1.Registry, useGet bool) error {
 	if string(r.pvc.Status.Phase) == "pending" {
-		return nil
+		return regv1.MakeRegistryError(regv1.NotReady)
 	}
 
 	return nil
