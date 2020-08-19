@@ -23,7 +23,7 @@ type RegistryService struct {
 	//[TODO] Logging
 }
 
-func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
+func (r *RegistryService) Create(c client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
 	if r.svc == nil {
 		r.svc = schemes.Service(reg)
 		if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
@@ -34,7 +34,7 @@ func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, cond
 		"RegistryService.Name", r.svc.Name, "RegistryService.Api", "Create")
 
 	if useGet {
-		err := r.get(client, reg, condition)
+		err := r.get(c, reg, condition)
 		if err != nil && !errors.IsNotFound(err) {
 			serviceLogger.Error(err, "Getting Service failed")
 			return err
@@ -44,7 +44,7 @@ func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, cond
 		}
 	}
 
-	if err := client.Create(context.TODO(), r.svc); err != nil {
+	if err := c.Create(context.TODO(), r.svc); err != nil {
 		serviceLogger.Error(err, "Create Failed")
 		condition.Status = corev1.ConditionFalse
 		condition.Message = err.Error()
@@ -55,11 +55,11 @@ func (r *RegistryService) Create(client client.Client, reg *regv1.Registry, cond
 	return nil
 }
 
-func (r *RegistryService) get(client client.Client, reg *regv1.Registry, condition *status.Condition) error {
+func (r *RegistryService) get(c client.Client, reg *regv1.Registry, condition *status.Condition) error {
 	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
 		"RegistryService.Name", r.svc.Name, "RegistryService.API", "get")
 	req := types.NamespacedName{Name: r.svc.Name, Namespace: r.svc.Namespace}
-	if err := client.Get(context.TODO(), req, r.svc); err != nil {
+	if err := c.Get(context.TODO(), req, r.svc); err != nil {
 		serviceLogger.Error(err, "Get Failed")
 		condition.Message = err.Error()
 		return err
@@ -72,7 +72,7 @@ func (r *RegistryService) GetTypeName() string {
 	return string(ServiceTypeName)
 }
 
-func (r *RegistryService) Patch(client client.Client, reg *regv1.Registry, useGet bool) error {
+func (r *RegistryService) Patch(c client.Client, reg *regv1.Registry, useGet bool) error {
 	// [TODO]
 	return nil
 }
@@ -160,4 +160,8 @@ func (r *RegistryService) Update(c client.Client, reg *regv1.Registry, useGet bo
 	}
 	serviceLogger.Info("Succeed")
 	return nil
+}
+
+func (r RegistryService)GetServiceTypeInfo() (string, string) {
+
 }
