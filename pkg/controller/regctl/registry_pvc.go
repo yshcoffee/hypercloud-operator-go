@@ -7,6 +7,7 @@ import (
 
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
+	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/status"
 
 	corev1 "k8s.io/api/core/v1"
@@ -18,19 +19,15 @@ import (
 )
 
 type RegistryPVC struct {
-	pvc *corev1.PersistentVolumeClaim
+	pvc    *corev1.PersistentVolumeClaim
+	logger logr.Logger
 }
 
 func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
-	if r.pvc == nil {
-		r.pvc = schemes.PersistentVolumeClaim(reg)
-	}
-	logger := utils.GetRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
-
-	if useGet {
+	if r.pvc == nil || useGet {
 		err := r.get(c, reg, condition)
 		if err != nil && !errors.IsNotFound(err) {
-			logger.Error(err, "pvc is error")
+			r.logger.Error(err, "pvc is error")
 			return err
 		} else if err == nil {
 			return err
@@ -38,16 +35,16 @@ func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *st
 	}
 
 	if reg.Spec.PersistentVolumeClaim.Exist != nil {
-		logger.Info("Use exist registry pvc")
+		r.logger.Info("Use exist registry pvc")
 		return nil
 	}
 
 	if err := controllerutil.SetControllerReference(reg, r.pvc, scheme); err != nil {
-		logger.Error(err, "SetOwnerReference Failed")
+		r.logger.Error(err, "SetOwnerReference Failed")
 		return err
 	}
 
-	logger.Info("Create registry pvc")
+	r.logger.Info("Create registry pvc")
 	err := c.Create(context.TODO(), r.pvc)
 	if err != nil {
 		if condition == nil {
@@ -59,7 +56,7 @@ func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *st
 		condition.Status = corev1.ConditionFalse
 		condition.Message = err.Error()
 
-		logger.Error(err, "Creating registry pvc is failed.")
+		r.logger.Error(err, "Creating registry pvc is failed.")
 		return err
 	}
 
@@ -67,16 +64,14 @@ func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, condition *st
 }
 
 func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry, condition *status.Condition) error {
-	if r.pvc == nil {
-		r.pvc = schemes.PersistentVolumeClaim(reg)
-	}
-	logger := utils.GetRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
+	r.pvc = schemes.PersistentVolumeClaim(reg)
+	r.logger = utils.GetRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
 
 	req := types.NamespacedName{Name: r.pvc.Name, Namespace: r.pvc.Namespace}
 
 	err := c.Get(context.TODO(), req, r.pvc)
 	if err != nil {
-		logger.Error(err, "Get regsitry pvc is failed")
+		r.logger.Error(err, "Get regsitry pvc is failed")
 		return err
 	}
 
@@ -92,6 +87,9 @@ func (r *RegistryPVC) Patch(c client.Client, reg *regv1.Registry, useGet bool) e
 }
 
 func (r *RegistryPVC) Ready(reg *regv1.Registry, useGet bool) error {
+	if r.pvc == nil || useGet {
+		r.get(nil, reg, nil)
+	}
 	if string(r.pvc.Status.Phase) == "pending" {
 		return regv1.MakeRegistryError(regv1.NotReady)
 	}
@@ -100,12 +98,7 @@ func (r *RegistryPVC) Ready(reg *regv1.Registry, useGet bool) error {
 }
 
 func (r *RegistryPVC) StatusPatch(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
-	if r.pvc == nil {
-		r.pvc = schemes.PersistentVolumeClaim(reg)
-	}
-	logger := utils.GetRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
-
-	if useGet {
+	if r.pvc == nil || useGet {
 		r.get(c, reg, condition)
 	}
 
@@ -115,21 +108,16 @@ func (r *RegistryPVC) StatusPatch(c client.Client, reg *regv1.Registry, conditio
 
 	err := c.Status().Patch(context.TODO(), target, patch)
 	if err != nil {
-		logger.Error(err, "Unknown error patching status")
+		r.logger.Error(err, "Unknown error patching status")
 		return err
 	}
 	return nil
 }
 
 func (r *RegistryPVC) StatusUpdate(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
-	if useGet {
-		r.get(c, reg, condition)
-	}
-
 	return nil
 }
 
 func (r *RegistryPVC) Update(c client.Client, reg *regv1.Registry, useGet bool) error {
-
 	return nil
 }

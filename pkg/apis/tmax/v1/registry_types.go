@@ -26,14 +26,14 @@ type RegistrySpec struct {
 	CustomConfigYml string `json:"customConfigYml,omitempty"`
 
 	DomainName         string             `json:"domainName,omitempty"`
-	RegistryReplicaSet RegistryReplicaSet `json:"registryReplicaSet,omitempty"`
+	RegistryDeployment RegistryDeployment `json:"registryDeployment,omitempty"`
 
 	// Supported service types are ingress and loadBalancer
 	RegistryService       RegistryService `json:"service"`
 	PersistentVolumeClaim RegistryPVC     `json:"persistentVolumeClaim"`
 }
 
-type RegistryReplicaSet struct {
+type RegistryDeployment struct {
 	Labels       map[string]string    `json:"labels"`
 	NodeSelector map[string]string    `json:"nodeSelector"`
 	Selector     metav1.LabelSelector `json:"selector"`

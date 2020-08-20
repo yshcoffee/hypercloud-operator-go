@@ -1,20 +1,20 @@
 package v1
 
-
 const (
-	NotReady = "NotReady"
-	Running = "Running"
-	Creating = "Creating"
+	NotReady    = "NotReady"
+	Running     = "Running"
+	Creating    = "Creating"
+	PodNotFound = "PodNotFound"
 )
 
 type RegistryErrors struct {
-	errorType *string
+	errorType    *string
 	errorMessage *string
 }
 
 func MakeRegistryError(e string) error {
 	RegistryError := RegistryErrors{}
-	if e == NotReady || e == Running || e == Creating {
+	if e == NotReady || e == Running || e == Creating || e == PodNotFound {
 		RegistryError.errorType = &e
 	} else {
 		RegistryError.errorMessage = &e

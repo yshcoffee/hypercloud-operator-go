@@ -131,7 +131,7 @@ func InitRegistryStatus(c client.Client, reg *regv1.Registry) {
 
 func getCheckTypes(reg *regv1.Registry) []status.ConditionType {
 	checkTypes := []status.ConditionType{
-		regv1.ConditionTypeReplicaSet,
+		regv1.ConditionTypeDeployment,
 		regv1.ConditionTypePod,
 		regv1.ConditionTypeService,
 		regv1.ConditionTypeSecretOpaque,

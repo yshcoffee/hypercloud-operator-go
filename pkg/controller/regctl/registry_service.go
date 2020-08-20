@@ -140,7 +140,7 @@ func (r *RegistryService) StatusUpdate(c client.Client, reg *regv1.Registry, con
 	}
 
 	registryCondition := reg.Status.Conditions.GetCondition(ServiceTypeName)
-	condition.DeepCopyInto(registryCondition);
+	condition.DeepCopyInto(registryCondition)
 	if err := c.Status().Update(context.TODO(), reg); err != nil {
 		serviceLogger.Error(err, "Update Failed")
 		return err
@@ -162,6 +162,6 @@ func (r *RegistryService) Update(c client.Client, reg *regv1.Registry, useGet bo
 	return nil
 }
 
-func (r RegistryService)GetServiceTypeInfo() (string, string) {
-
+func (r RegistryService) GetServiceTypeInfo() (string, string) {
+	return "a", "b" // [YSH] error
 }

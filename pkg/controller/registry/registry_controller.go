@@ -124,38 +124,38 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { // if want to requeue, return true
 	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
 	subResourceLogger.Info("Creating all Subresources")
-	for _, subresource := range collectSubresources() {
+
+	// Check if subresources are created.
+	for _, subresource := range collectSubController() {
 		subresourceType := reflect.TypeOf(subresource).String()
 		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
-		registryCondition := &status.Condition{
-			Status: corev1.ConditionFalse,
-			Type:   status.ConditionType(subresource.GetTypeName()),
-		}
+		registryConditions := &status.Conditions{}
 
-		if err := subresource.Create(r.client, reg, registryCondition, r.scheme, true); err != nil {
+		if err := subresource.Create(r.client, reg, registryConditions, r.scheme, true); err != nil {
 			subResourceLogger.Info("Got Error in creating subresource ")
-			subresource.StatusPatch(r.client, reg, registryCondition, true)
+			subresource.StatusPatch(r.client, reg, registryConditions, true)
 			return err
 		}
+	}
 
-		err := subresource.Ready(reg, true)
+	// Check if subresources are ready.
+	for _, subresource := range collectSubController() {
+		registryConditions := &status.Conditions{}
+		err := subresource.Ready(r.client, reg, registryConditions, true)
 		if err != nil && err.Error() == regv1.NotReady {
-			registryCondition.Status = corev1.ConditionFalse
-			subresource.StatusPatch(r.client, reg, registryCondition, false)
+			subresource.StatusPatch(r.client, reg, registryConditions, false)
 			return err
 		} else {
-			registryCondition.Status = corev1.ConditionTrue
-			subresource.StatusPatch(r.client, reg, registryCondition, false)
+			subresource.StatusPatch(r.client, reg, registryConditions, false)
 		}
 	}
 
 	return nil
 }
 
-func collectSubresources() []regctl.RegistrySubresource {
+func collectSubController() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	// collection = append(collection, &regctl.RegistryService{})
 	collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{})
 	return collection
 }

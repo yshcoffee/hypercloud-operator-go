@@ -14,8 +14,9 @@ const (
 	StatusSkipped   = Status("Skipped")
 	StatusCreating  = Status("Creating")
 
-	ConditionTypeReplicaSet             = status.ConditionType("ReplicaSetExist")
+	ConditionTypeDeployment             = status.ConditionType("ConditionTypeDeploymentExist")
 	ConditionTypePod                    = status.ConditionType("PodRunning")
+	ConditionTypeContainer              = status.ConditionType("ContainerReady")
 	ConditionTypeService                = status.ConditionType("ServiceExist")
 	ConditionTypeSecretOpaque           = status.ConditionType("SecretOpaqueExist")
 	ConditionTypeSecretDockerConfigJson = status.ConditionType("SecretDockerConfigJsonExist")
