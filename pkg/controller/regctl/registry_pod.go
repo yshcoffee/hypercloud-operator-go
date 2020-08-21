@@ -20,11 +20,11 @@ type RegistryPod struct {
 	logger logr.Logger
 }
 
-func (r *RegistryPod) Create(c client.Client, reg *regv1.Registry, conditions *status.Conditions, scheme *runtime.Scheme, useGet bool) error {
+func (r *RegistryPod) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
 	return nil
 }
 
-func (r *RegistryPod) get(c client.Client, reg *regv1.Registry, conditions *status.Conditions) error {
+func (r *RegistryPod) get(c client.Client, reg *regv1.Registry) error {
 	r.pod = &corev1.Pod{}
 	r.logger = utils.GetRegistryLogger(*r, reg.Namespace, reg.Name+" registry's pod")
 
@@ -55,17 +55,13 @@ func (r *RegistryPod) get(c client.Client, reg *regv1.Registry, conditions *stat
 	return nil
 }
 
-func (r *RegistryPod) GetTypeName() string {
-	return string(regv1.ConditionTypePvc)
-}
-
 func (r *RegistryPod) Patch(c client.Client, reg *regv1.Registry, useGet bool) error {
 	return nil
 }
 
-func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, conditions *status.Conditions, useGet bool) error {
+func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
 	if r.pod == nil || useGet {
-		err := r.get(c, reg, conditions)
+		err := r.get(c, reg)
 		if err != nil {
 			r.logger.Error(err, "Pod error")
 			return err
@@ -76,46 +72,13 @@ func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, conditions *st
 		Status: corev1.ConditionTrue,
 		Type:   regv1.ConditionTypePod,
 	}
-	conditions.SetCondition(condition1)
+	patchReg.Status.Conditions.SetCondition(condition1)
 
 	condition2 := status.Condition{
 		Status: corev1.ConditionTrue,
 		Type:   regv1.ConditionTypeContainer,
 	}
-	conditions.SetCondition(condition2)
+	patchReg.Status.Conditions.SetCondition(condition2)
 
-	return nil
-}
-
-func (r *RegistryPod) StatusPatch(c client.Client, reg *regv1.Registry, conditions *status.Conditions, useGet bool) error {
-	if r.pod == nil || useGet {
-		err := r.get(c, reg, conditions)
-		if err != nil {
-			r.logger.Error(err, "Pod error")
-			return err
-		}
-	}
-
-	patch := client.MergeFrom(reg) // Set original obeject
-	target := reg.DeepCopy()       // Target to Patch object
-
-	for _, condition := range *conditions {
-		r.logger.Info("patch condition", "type", string(condition.Type))
-		target.Status.Conditions.SetCondition(condition)
-	}
-
-	err := c.Status().Patch(context.TODO(), target, patch)
-	if err != nil {
-		r.logger.Error(err, "Unknown error patching status")
-		return err
-	}
-	return nil
-}
-
-func (r *RegistryPod) StatusUpdate(c client.Client, reg *regv1.Registry, conditions *status.Conditions, useGet bool) error {
-	return nil
-}
-
-func (r *RegistryPod) Update(c client.Client, reg *regv1.Registry, useGet bool) error {
 	return nil
 }

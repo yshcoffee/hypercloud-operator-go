@@ -24,9 +24,9 @@ type RegistryDeployment struct {
 	logger logr.Logger
 }
 
-func (r *RegistryDeployment) Create(c client.Client, reg *regv1.Registry, conditions *status.Conditions, scheme *runtime.Scheme, useGet bool) error {
+func (r *RegistryDeployment) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
 	if r.deploy == nil || useGet {
-		err := r.get(c, reg, conditions)
+		err := r.get(c, reg)
 		if err != nil && !errors.IsNotFound(err) {
 			r.logger.Error(err, "Deployment error")
 			return err
@@ -37,7 +37,14 @@ func (r *RegistryDeployment) Create(c client.Client, reg *regv1.Registry, condit
 
 	if err := controllerutil.SetControllerReference(reg, r.deploy, scheme); err != nil {
 		r.logger.Error(err, "SetOwnerReference Failed")
-		return err
+		condition := status.Condition{
+			Status:  corev1.ConditionFalse,
+			Type:    regv1.ConditionTypeDeployment,
+			Message: err.Error(),
+		}
+
+		patchReg.Status.Conditions.SetCondition(condition)
+		return nil
 	}
 
 	r.logger.Info("Create registry deployment")
@@ -49,15 +56,15 @@ func (r *RegistryDeployment) Create(c client.Client, reg *regv1.Registry, condit
 			Message: err.Error(),
 		}
 
-		conditions.SetCondition(condition)
+		patchReg.Status.Conditions.SetCondition(condition)
 		r.logger.Error(err, "Creating registry deployment is failed.")
-		return err
+		return nil
 	}
 
 	return nil
 }
 
-func (r *RegistryDeployment) get(c client.Client, reg *regv1.Registry, conditions *status.Conditions) error {
+func (r *RegistryDeployment) get(c client.Client, reg *regv1.Registry) error {
 	r.deploy = schemes.Deployment(reg)
 	r.logger = utils.GetRegistryLogger(*r, r.deploy.Namespace, r.deploy.Name)
 
@@ -72,17 +79,13 @@ func (r *RegistryDeployment) get(c client.Client, reg *regv1.Registry, condition
 	return nil
 }
 
-func (r *RegistryDeployment) GetTypeName() string {
-	return string(regv1.ConditionTypeDeployment)
-}
-
 func (r *RegistryDeployment) Patch(c client.Client, reg *regv1.Registry, useGet bool) error {
 	return nil
 }
 
-func (r *RegistryDeployment) Ready(c client.Client, reg *regv1.Registry, conditions *status.Conditions, useGet bool) error {
-	if r.deploy == nil || useGet {
-		err := r.get(c, reg, conditions)
+func (r *RegistryDeployment) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	if useGet {
+		err := r.get(c, reg)
 		if err != nil {
 			r.logger.Error(err, "Deployment error")
 			return err
@@ -95,38 +98,5 @@ func (r *RegistryDeployment) Ready(c client.Client, reg *regv1.Registry, conditi
 	}
 
 	conditions.SetCondition(condition)
-	return nil
-}
-
-func (r *RegistryDeployment) StatusPatch(c client.Client, reg *regv1.Registry, conditions *status.Conditions, useGet bool) error {
-	if r.deploy == nil || useGet {
-		err := r.get(c, reg, conditions)
-		if err != nil {
-			r.logger.Error(err, "Deployment error")
-			return err
-		}
-	}
-
-	patch := client.MergeFrom(reg) // Set original obeject
-	target := reg.DeepCopy()       // Target to Patch object
-
-	for _, condition := range *conditions {
-		r.logger.Info("patch condition", "type", string(condition.Type))
-		target.Status.Conditions.SetCondition(condition)
-	}
-
-	err := c.Status().Patch(context.TODO(), target, patch)
-	if err != nil {
-		r.logger.Error(err, "Unknown error patching status")
-		return err
-	}
-	return nil
-}
-
-func (r *RegistryDeployment) StatusUpdate(c client.Client, reg *regv1.Registry, conditions *status.Conditions, useGet bool) error {
-	return nil
-}
-
-func (r *RegistryDeployment) Update(c client.Client, reg *regv1.Registry, useGet bool) error {
 	return nil
 }
