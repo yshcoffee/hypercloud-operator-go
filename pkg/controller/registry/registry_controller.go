@@ -6,7 +6,6 @@ import (
 	"hypercloud-operator-go/pkg/controller/regctl"
 	"reflect"
 
-	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -125,37 +124,55 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
 	subResourceLogger.Info("Creating all Subresources")
 
-	// Check if subresources are created.
-	for _, subresource := range collectSubController() {
-		subresourceType := reflect.TypeOf(subresource).String()
-		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
-		registryConditions := &status.Conditions{}
+	collectSubController := collectSubController()
+	patchReg := reg.DeepCopy() // Target to Patch object
 
-		if err := subresource.Create(r.client, reg, registryConditions, r.scheme, true); err != nil {
-			subResourceLogger.Info("Got Error in creating subresource ")
-			subresource.StatusPatch(r.client, reg, registryConditions, true)
+	defer r.patch(reg, patchReg)
+
+	// Check if subresources are created.
+	for _, sctl := range collectSubController {
+		subresourceType := reflect.TypeOf(sctl).String()
+		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
+
+		// Check if subresource is Created.
+		if err := sctl.Create(r.client, reg, patchReg, r.scheme, true); err != nil {
+			subResourceLogger.Error(err, "Got an error in creating subresource ")
 			return err
 		}
-	}
 
-	// Check if subresources are ready.
-	for _, subresource := range collectSubController() {
-		registryConditions := &status.Conditions{}
-		err := subresource.Ready(r.client, reg, registryConditions, true)
-		if err != nil && err.Error() == regv1.NotReady {
-			subresource.StatusPatch(r.client, reg, registryConditions, false)
+		// Check if subresource is ready.
+		if err := sctl.Ready(r.client, reg, patchReg, false); err != nil {
+			subResourceLogger.Error(err, "Got an error in checking ready")
 			return err
-		} else {
-			subresource.StatusPatch(r.client, reg, registryConditions, false)
 		}
 	}
 
 	return nil
 }
 
+func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
+	subResourceLogger := log.WithValues("SubResource.Namespace", origin.Namespace, "SubResource.Name", origin.Name)
+	originObject := client.MergeFrom(origin) // Set original obeject
+	statusPatchTarget := target.DeepCopy()
+
+	if err := r.client.Patch(context.TODO(), target, originObject); err != nil {
+		subResourceLogger.Error(err, "Unknown error patching status")
+		return err
+	}
+
+	if err := r.client.Status().Patch(context.TODO(), statusPatchTarget, originObject); err != nil {
+		subResourceLogger.Error(err, "Unknown error patching status")
+		return err
+	}
+	subResourceLogger.Info("Patch done")
+	return nil
+}
+
 func collectSubController() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{})
+	// [TODO] Add subresources dependency.
+	// collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{})
+	collection = append(collection, &regctl.RegistryPVC{})
 	return collection
 }

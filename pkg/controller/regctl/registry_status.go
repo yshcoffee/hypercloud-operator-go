@@ -133,6 +133,7 @@ func getCheckTypes(reg *regv1.Registry) []status.ConditionType {
 	checkTypes := []status.ConditionType{
 		regv1.ConditionTypeDeployment,
 		regv1.ConditionTypePod,
+		regv1.ConditionTypeContainer,
 		regv1.ConditionTypeService,
 		regv1.ConditionTypeSecretOpaque,
 		regv1.ConditionTypeSecretDockerConfigJson,

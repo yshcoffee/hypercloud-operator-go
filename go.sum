@@ -415,6 +415,7 @@ github.com/goharbor/harbor v2.0.2+incompatible h1:GOVsvxnGDKQ2iqRpRSP4WVRkmecT9x
 github.com/goharbor/harbor/src v0.0.0-20200810021603-f31b29a01c12 h1:BBI6wuH1e6yPTyTjEuTTvoSKDfR76KarZFf/KQlJtNk=
 github.com/goharbor/harbor/src v0.0.0-20200819104903-8d7d5790b872 h1:gMSzEOIt/8b3tobDiSE6aVQtMB5f3eN4QoE26YHV9W8=
 github.com/goharbor/harbor/src v0.0.0-20200819104903-8d7d5790b872/go.mod h1:/y6C+Dg79WHDRY2vPkqtXVmNJDBb5wSYh9I/VuiwcpI=
+github.com/goharbor/harbor/src v0.0.0-20200820073835-08a4d8efd261 h1:7eNs4bZddstGNPlVMdbqG0pCd0QQ8vtkjF+ASR+oycA=
 github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d/go.mod h1:nnjvkQ9ptGaCkuDUx6wNykzzlUixGxvkme+H/lnzb+A=
 github.com/golang-migrate/migrate/v4 v4.6.2/go.mod h1:JYi6reN3+Z734VZ0akNuyOJNcrg45ZL7LDBMW3WGJL0=
 github.com/golang-migrate/migrate/v4 v4.11.0 h1:uqtd0ysK5WyBQ/T1K2uDIooJV0o2Obt6uPwP062DupQ=

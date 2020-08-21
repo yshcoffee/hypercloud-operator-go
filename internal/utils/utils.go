@@ -21,7 +21,7 @@ func GetLabel(reg *regv1.Registry) map[string]string {
 // Use for GetRegistryLogger
 func getFuncName() string {
 	pc := make([]uintptr, 15)
-	n := runtime.Callers(3, pc) //Skip: 3 (Callers, getFuncName, GetRegistryLogger)
+	n := runtime.Callers(4, pc) //Skip: 3 (Callers, getFuncName, GetRegistryLogger, get)
 	frames := runtime.CallersFrames(pc[:n])
 	frame, _ := frames.Next()
 	return frame.Function
