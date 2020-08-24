@@ -9,6 +9,7 @@ import (
 const (
 	RegistryLoginUrl = CustomObjectGroup + "/registry-login-url"
 	RegistryKind     = "Registry"
+
 )
 
 // RegistrySpec defines the desired state of Registry
@@ -40,12 +41,25 @@ type RegistryDeployment struct {
 	Tolerations  []corev1.Toleration  `json:"tolerations"`
 }
 
+type RegistryServiceType string
+const (
+	RegServiceTypeLoadBalancer = "LoadBalancer"
+	RegServiceTypeIngress = "Ingress"
+)
+
 type RegistryService struct {
+	// use Ingress or LoadBalancer
+	ServiceType RegistryServiceType `json:"serviceType"`
 	// use ingress service type
-	Ingress *Ingress `json:"ingress,omitempty"`
+	Ingress Ingress `json:"ingress,omitempty"`
 
 	//
-	LoadBalancer *LoadBalancer `json:"loadBalancer,omitempty"`
+	LoadBalancer LoadBalancer `json:"loadBalancer,omitempty"`
+
+	ClusterIP string `json:"clusterIP,omitempty"`
+
+	// external port. Generally use 443 port
+	Port int `json:"port",default:"443"`
 }
 
 type RegistryPVC struct {
@@ -89,7 +103,6 @@ type Registry struct {
 	Spec   RegistrySpec   `json:"spec"`
 	Status RegistryStatus `json:"status,omitempty"`
 
-	OperatorStartTime string `json:"operatorStartTime,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

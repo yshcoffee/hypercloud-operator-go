@@ -10,10 +10,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func GetServiceName(reg *regv1.Registry) string {
-	return reg.Name + "-svc"
-}
-
 func GetLabel(reg *regv1.Registry) map[string]string {
 	return map[string]string{}
 }

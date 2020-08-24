@@ -2,10 +2,13 @@ package regctl
 
 import (
 	"github.com/operator-framework/operator-sdk/pkg/status"
+	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"hypercloud-operator-go/internal/schemes"
 )
 
 const SecretOpaqueTypeName = regv1.ConditionTypeSecretOpaque
@@ -16,6 +19,11 @@ type RegistryCertSecret struct {
 }
 
 func (r *RegistryCertSecret) Create(c client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
+	logger := utils.GetRegistryLogger(r, reg.Namespace, reg.Name)
+	if r.secretOpaque == nil {
+		r.secretOpaque = schemes.SecretOpaque(reg)
+		logger.Info("Create Secret Done")
+	}
 	// [TODO] Owner Reference to Opaque Secret
 	return nil
 }

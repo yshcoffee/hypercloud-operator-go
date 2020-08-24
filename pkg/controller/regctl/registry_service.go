@@ -94,11 +94,13 @@ func (r *RegistryService) Ready(reg *regv1.Registry, useGet bool) error {
 			// Several Ingress
 			return regv1.MakeRegistryError(regv1.NotReady)
 		}
+		reg.Spec.RegistryService.LoadBalancer.IP = lbIP
 		serviceLogger.Info("LoadBalancer info", "LoadBalancer IP", lbIP)
 	} else if r.svc.Spec.Type == corev1.ServiceTypeClusterIP {
 		serviceLogger.Info("Service Type is ClusterIp")
 		// [TODO]
 	}
+	reg.Spec.RegistryService.ClusterIP = r.svc.Spec.ClusterIP
 	serviceLogger.Info("Succeed")
 	return regv1.MakeRegistryError(regv1.Running)
 }
@@ -160,8 +162,4 @@ func (r *RegistryService) Update(c client.Client, reg *regv1.Registry, useGet bo
 	}
 	serviceLogger.Info("Succeed")
 	return nil
-}
-
-func (r RegistryService) GetServiceTypeInfo() (string, string) {
-	return "a", "b" // [YSH] error
 }

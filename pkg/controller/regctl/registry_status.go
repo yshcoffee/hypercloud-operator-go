@@ -141,7 +141,7 @@ func getCheckTypes(reg *regv1.Registry) []status.ConditionType {
 		regv1.ConditionTypeConfigMap,
 	}
 
-	if reg.Spec.RegistryService.Ingress != nil {
+	if reg.Spec.RegistryService.ServiceType == regv1.RegServiceTypeIngress {
 		checkTypes = append(checkTypes, regv1.ConditionTypeSecretTls, regv1.ConditionTypeIngress)
 	}
 

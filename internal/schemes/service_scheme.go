@@ -22,21 +22,9 @@ func Service(reg *regv1.Registry) *corev1.Service {
 	label := utils.GetLabel(reg)
 	label["app"] = "registry"
 	label["apps"] = regv1.K8sPrefix + reg.Name
-	port := RegistryTargetPort
-	serviceName := Ingress
-	if reg.Spec.RegistryService.Ingress == nil {
-		serviceName = LoadBalancer
-	}
-
-	if serviceName == Ingress {
-		if reg.Spec.RegistryService.Ingress.Port != 0 {
-			port = reg.Spec.RegistryService.Ingress.Port
-		}
-	} else {
-		if reg.Spec.RegistryService.LoadBalancer.Port != 0 {
-			port = reg.Spec.RegistryService.LoadBalancer.Port
-		}
-	}
+	port := reg.Spec.RegistryService.Port
+	serviceName := reg.Spec.RegistryService.ServiceType
+	utils.GetRegistryLogger(corev1.Service{}, reg.Namespace, regServiceName).Info("Port log", "Port", port)
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
