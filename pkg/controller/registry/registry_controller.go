@@ -135,6 +135,8 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 	for _, sctl := range collectSubController {
 		subresourceType := reflect.TypeOf(sctl).String()
 		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
+		subResourceLogger.Info("Information Log", "ClusterIP", reg.Spec.RegistryService.ClusterIP,
+			"LoadBalancer IP", reg.Spec.RegistryService.LoadBalancer.IP, "DomainName", reg.Spec.RegistryService.Ingress.DomainName)
 
 		// Check if subresource is Created.
 		if err := sctl.Create(r.client, reg, patchReg, r.scheme, true); err != nil {
@@ -215,6 +217,6 @@ func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
 func collectSubController() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{}, &regctl.RegistryPVC{})
+	collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{})
 	return collection
 }

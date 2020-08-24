@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/operator-framework/operator-sdk/pkg/status"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"reflect"
 	"runtime"
@@ -30,4 +31,11 @@ func GetRegistryLogger(subresource interface{}, resNamespace, resName string) lo
 	funcName = path[len(path)-1]
 
 	return log.Log.WithValues(typeName+".Namespace", resNamespace, typeName+".Name", resName, typeName+".Api", funcName)
+}
+
+func SetError(error error, patchReg *regv1.Registry, condition status.Condition) {
+	if error != nil {
+		condition.Message = error.Error()
+	}
+	patchReg.Status.Conditions.SetCondition(condition)
 }

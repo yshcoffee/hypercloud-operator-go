@@ -24,7 +24,7 @@ func Service(reg *regv1.Registry) *corev1.Service {
 	label["apps"] = regv1.K8sPrefix + reg.Name
 	port := reg.Spec.RegistryService.Port
 	serviceName := reg.Spec.RegistryService.ServiceType
-	utils.GetRegistryLogger(corev1.Service{}, reg.Namespace, regServiceName).Info("Port log", "Port", port)
+	utils.GetRegistryLogger(corev1.Service{}, reg.Namespace, reg.Name).Info("ServiceType", "Type", serviceName)
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{

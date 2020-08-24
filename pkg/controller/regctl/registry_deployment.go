@@ -92,11 +92,11 @@ func (r *RegistryDeployment) Ready(c client.Client, reg *regv1.Registry, patchRe
 		}
 	}
 
-	condition := status.Condition{
-		Status: corev1.ConditionTrue,
-		Type:   regv1.ConditionTypeDeployment,
-	}
+	//condition := status.Condition{
+	//	Status: corev1.ConditionTrue,
+	//	Type:   regv1.ConditionTypeDeployment,
+	//}
 
-	conditions.SetCondition(condition)
+	//conditions.SetCondition(condition)
 	return nil
 }

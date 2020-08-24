@@ -2,7 +2,9 @@ package regctl
 
 import (
 	"context"
+	"github.com/go-logr/logr"
 	"hypercloud-operator-go/internal/schemes"
+	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -13,73 +15,83 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const ServiceTypeName = regv1.ConditionTypeService
 
 type RegistryService struct {
 	svc *corev1.Service
-	//[TODO] Logging
+	logger logr.Logger
 }
 
-func (r *RegistryService) Create(c client.Client, reg *regv1.Registry, condition *status.Condition, scheme *runtime.Scheme, useGet bool) error {
-	if r.svc == nil {
-		r.svc = schemes.Service(reg)
-		if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
+func (r *RegistryService) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
+	condition := status.Condition {
+		Status: corev1.ConditionFalse,
+		Type: ServiceTypeName,
+	}
+
+	if useGet {
+		err := r.get(c, reg)
+		if err != nil && !errors.IsNotFound(err) {
+			r.logger.Error(err, "Getting Service failed")
+			utils.SetError(err, patchReg, condition)
+			return err
+		} else if err == nil {
+			r.logger.Info("Service already exist")
 			return err
 		}
 	}
-	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.Api", "Create")
 
-	if useGet {
-		err := r.get(c, reg, condition)
-		if err != nil && !errors.IsNotFound(err) {
-			serviceLogger.Error(err, "Getting Service failed")
-			return err
-		} else if err == nil {
-			serviceLogger.Info("Service already exist")
-			return err
-		}
+	if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
+		r.logger.Error(err, "Set owner reference failed")
+		utils.SetError(err, patchReg, condition)
+		return err
 	}
 
 	if err := c.Create(context.TODO(), r.svc); err != nil {
-		serviceLogger.Error(err, "Create Failed")
-		condition.Status = corev1.ConditionFalse
-		condition.Message = err.Error()
+		r.logger.Error(err, "Create failed")
+		utils.SetError(err, patchReg, condition)
 		return err
 	}
 
-	serviceLogger.Info("Succeed")
+	r.logger.Info("Succeed")
 	return nil
 }
 
-func (r *RegistryService) get(c client.Client, reg *regv1.Registry, condition *status.Condition) error {
-	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.API", "get")
+func (r *RegistryService) get(c client.Client, reg *regv1.Registry) error {
+	if r.svc == nil {
+		r.svc = schemes.Service(reg)
+		r.logger = utils.GetRegistryLogger(*r, r.svc.Namespace, r.svc.Name)
+	}
+
 	req := types.NamespacedName{Name: r.svc.Name, Namespace: r.svc.Namespace}
 	if err := c.Get(context.TODO(), req, r.svc); err != nil {
-		serviceLogger.Error(err, "Get Failed")
-		condition.Message = err.Error()
+		r.logger.Error(err, "Get Failed")
 		return err
 	}
-	serviceLogger.Info("Succeed")
+	r.logger.Info("Succeed")
 	return nil
 }
 
-func (r *RegistryService) GetTypeName() string {
-	return string(ServiceTypeName)
-}
-
-func (r *RegistryService) Patch(c client.Client, reg *regv1.Registry, useGet bool) error {
+func (r *RegistryService) Patch(c client.Client, reg *regv1.Registry, json []byte) error {
 	// [TODO]
 	return nil
 }
 
-func (r *RegistryService) Ready(reg *regv1.Registry, useGet bool) error {
-	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.API", "Ready")
+func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	condition := status.Condition {
+		Status: corev1.ConditionFalse,
+		Type: ServiceTypeName,
+	}
+
+	if useGet {
+		if err := r.get(c, reg); err != nil {
+			r.logger.Error(err, "Getting Service error")
+			utils.SetError(err, patchReg, condition)
+			return err
+		}
+	}
+
 	if r.svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		loadBalancer := r.svc.Status.LoadBalancer
 		lbIP := ""
@@ -90,76 +102,20 @@ func (r *RegistryService) Ready(reg *regv1.Registry, useGet bool) error {
 			} else {
 				lbIP = loadBalancer.Ingress[0].Hostname
 			}
-		} else {
+		} else if len(loadBalancer.Ingress) == 0 {
 			// Several Ingress
-			return regv1.MakeRegistryError(regv1.NotReady)
+			// [TODO] Is this error?
+			utils.SetError(nil, patchReg, condition)
+			return regv1.MakeRegistryError("NotReady")
 		}
 		reg.Spec.RegistryService.LoadBalancer.IP = lbIP
-		serviceLogger.Info("LoadBalancer info", "LoadBalancer IP", lbIP)
+		r.logger.Info("LoadBalancer info", "LoadBalancer IP", lbIP)
 	} else if r.svc.Spec.Type == corev1.ServiceTypeClusterIP {
-		serviceLogger.Info("Service Type is ClusterIp")
+		r.logger.Info("Service Type is ClusterIp")
 		// [TODO]
 	}
 	reg.Spec.RegistryService.ClusterIP = r.svc.Spec.ClusterIP
-	serviceLogger.Info("Succeed")
-	return regv1.MakeRegistryError(regv1.Running)
-}
-
-func (r *RegistryService) StatusPatch(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
-	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.API", "StatusPatch")
-
-	if useGet {
-		if err := r.get(c, reg, condition); (err != nil && !errors.IsNotFound(err)) || err == nil {
-			serviceLogger.Error(err, "Getting Service failed")
-			return err
-		}
-	}
-
-	patch := client.MergeFrom(reg)
-	target := reg.DeepCopy()
-	target.Status.Conditions.SetCondition(*condition)
-
-	if err := c.Status().Patch(context.TODO(), target, patch); err != nil {
-		serviceLogger.Error(err, "StatusPatch Failed")
-		return err
-	}
-
-	serviceLogger.Info("Succeed")
+	r.logger.Info("Succeed")
 	return nil
 }
 
-func (r *RegistryService) StatusUpdate(c client.Client, reg *regv1.Registry, condition *status.Condition, useGet bool) error {
-	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.API", "StatusUpdate")
-
-	// [TODO] Why this condition needed?
-	if useGet {
-		if err := r.get(c, reg, condition); (err != nil && !errors.IsNotFound(err)) || err == nil {
-			serviceLogger.Error(err, "Getting Service failed")
-			return err
-		}
-	}
-
-	registryCondition := reg.Status.Conditions.GetCondition(ServiceTypeName)
-	condition.DeepCopyInto(registryCondition)
-	if err := c.Status().Update(context.TODO(), reg); err != nil {
-		serviceLogger.Error(err, "Update Failed")
-		return err
-	}
-
-	return nil
-}
-
-func (r *RegistryService) Update(c client.Client, reg *regv1.Registry, useGet bool) error {
-	serviceLogger := log.Log.WithValues("RegistryService.Namespace", r.svc.Namespace,
-		"RegistryService.Name", r.svc.Name, "RegistryService.API", "Update")
-
-	// [TODO] Is this Spec update?
-	if err := c.Status().Update(context.TODO(), reg); err != nil {
-		serviceLogger.Error(err, "Update Failed")
-		return err
-	}
-	serviceLogger.Info("Succeed")
-	return nil
-}

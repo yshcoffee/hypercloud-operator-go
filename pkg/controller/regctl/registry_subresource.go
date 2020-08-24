@@ -20,3 +20,4 @@ type RegistrySubresource interface {
 	// StatusUpdate(client.Client, *regv1.Registry, *regv1.Registry, bool) error
 	// Update(client.Client, *regv1.Registry, interface{}, bool) error
 }
+
