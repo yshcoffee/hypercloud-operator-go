@@ -24,6 +24,7 @@ func getFuncName() string {
 	return frame.Function
 }
 
+// [TODO] API is not worked well
 func GetRegistryLogger(subresource interface{}, resNamespace, resName string) logr.Logger {
 	typeName := reflect.TypeOf(subresource).Name()
 	funcName := getFuncName()

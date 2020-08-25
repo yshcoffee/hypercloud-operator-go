@@ -17,9 +17,11 @@ import (
 const (
 	CertKeyFile = "localhub.key"
 	CertCrtFile = "localhub.crt"
+	TLSCert = "tls.crt"
+	TLSKey = "tls.key"
 )
 
-func SecretOpaque(reg *regv1.Registry) *corev1.Secret {
+func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 	logger := utils.GetRegistryLogger(corev1.Secret{}, reg.Namespace, reg.Name + "secret")
 	secretType := corev1.SecretTypeOpaque
 	secretName := regv1.K8sPrefix + reg.Name
@@ -46,24 +48,45 @@ func SecretOpaque(reg *regv1.Registry) *corev1.Secret {
 	if err != nil {
 		// ERROR
 		logger.Error(err, "Create certificate failed")
-		return nil
+		return nil, nil
 	}
 	logger.Info("Create Certificate Succeed")
 	data[CertCrtFile] = certificateBytes // have to do parse
 	data[CertKeyFile] = x509.MarshalPKCS1PrivateKey(privateKey) // have to do unmarshal
 
 	logger.Info("Create Secret Opaque Succeed")
+
+	tlsSecretType := corev1.SecretTypeTLS
+	tlsData := map[string][]byte{}
+	tlsData[TLSCert] = data[CertCrtFile]
+	tlsData[TLSKey] = data[CertKeyFile]
+
+	logger.Info("Create Secret TLS Succeed")
+
+
+
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Namespace: reg.Namespace,
-			Labels: map[string]string {
-				"secret": "cert",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: secretName,
+				Namespace: reg.Namespace,
+				Labels: map[string]string {
+					"secret": "cert",
+				},
 			},
+			Type: secretType,
+			Data: data,
 		},
-		Type: secretType,
-		Data: data,
-	}
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta {
+				Name: reg.Name,
+				Namespace: reg.Namespace,
+				Labels: map[string]string {
+					"secret": "tls",
+				},
+			},
+			Type: tlsSecretType,
+			Data: tlsData,
+		}
 }
 
 // [TODO] Logging

@@ -70,6 +70,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &regv1.Registry{},
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -135,8 +143,6 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 	for _, sctl := range collectSubController {
 		subresourceType := reflect.TypeOf(sctl).String()
 		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
-		subResourceLogger.Info("Information Log", "ClusterIP", reg.Spec.RegistryService.ClusterIP,
-			"LoadBalancer IP", reg.Spec.RegistryService.LoadBalancer.IP, "DomainName", reg.Spec.RegistryService.Ingress.DomainName)
 
 		// Check if subresource is Created.
 		if err := sctl.Create(r.client, reg, patchReg, r.scheme, true); err != nil {
