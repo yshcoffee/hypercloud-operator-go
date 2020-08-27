@@ -2,10 +2,10 @@ package regctl
 
 import (
 	"context"
-	"github.com/go-logr/logr"
-	"github.com/operator-framework/operator-sdk/pkg/status"
 	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+
+	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,19 +21,19 @@ const SecretTLSTypeName = regv1.ConditionTypeSecretTls
 
 type RegistryCertSecret struct {
 	secretOpaque *corev1.Secret
-	secretTLS *corev1.Secret
-	logger logr.Logger
+	secretTLS    *corev1.Secret
+	logger       *utils.RegistryLogger
 }
 
 func (r *RegistryCertSecret) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	condition := status.Condition {
+	condition := status.Condition{
 		Status: corev1.ConditionFalse,
-		Type: SecretOpaqueTypeName,
+		Type:   SecretOpaqueTypeName,
 	}
 
-	tlsCondition := status.Condition {
+	tlsCondition := status.Condition{
 		Status: corev1.ConditionFalse,
-		Type: SecretTLSTypeName,
+		Type:   SecretTLSTypeName,
 	}
 
 	if useGet {
@@ -77,7 +77,7 @@ func (r *RegistryCertSecret) Create(c client.Client, reg *regv1.Registry, patchR
 func (r *RegistryCertSecret) get(c client.Client, reg *regv1.Registry) error {
 	if r.secretOpaque == nil {
 		r.secretOpaque, r.secretTLS = schemes.Secrets(reg)
-		r.logger = utils.GetRegistryLogger(*r, r.secretOpaque.Namespace, r.secretOpaque.Name)
+		r.logger = utils.NewRegistryLogger(*r, r.secretOpaque.Namespace, r.secretOpaque.Name)
 	}
 
 	req := types.NamespacedName{Name: r.secretOpaque.Name, Namespace: r.secretOpaque.Namespace}
@@ -109,14 +109,14 @@ func (r *RegistryCertSecret) Ready(c client.Client, reg *regv1.Registry, patchRe
 		}
 	}
 
-	condition := status.Condition {
+	condition := status.Condition{
 		Status: corev1.ConditionFalse,
-		Type: regv1.ConditionTypeSecretOpaque,
+		Type:   regv1.ConditionTypeSecretOpaque,
 	}
 
-	tlsCondition := status.Condition {
+	tlsCondition := status.Condition{
 		Status: corev1.ConditionFalse,
-		Type: regv1.ConditionTypeSecretTls,
+		Type:   regv1.ConditionTypeSecretTls,
 	}
 
 	// DATA Check
@@ -149,7 +149,3 @@ func (r *RegistryCertSecret) Ready(c client.Client, reg *regv1.Registry, patchRe
 	r.logger.Info("Succeed")
 	return nil
 }
-
-
-
-

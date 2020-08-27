@@ -14,7 +14,7 @@ const (
 	StatusSkipped   = Status("Skipped")
 	StatusCreating  = Status("Creating")
 
-	ConditionTypeDeployment             = status.ConditionType("ConditionTypeDeploymentExist")
+	ConditionTypeDeployment             = status.ConditionType("DeploymentExist")
 	ConditionTypePod                    = status.ConditionType("PodRunning")
 	ConditionTypeContainer              = status.ConditionType("ContainerReady")
 	ConditionTypeService                = status.ConditionType("ServiceExist")

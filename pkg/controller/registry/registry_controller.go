@@ -8,6 +8,7 @@ import (
 	"hypercloud-operator-go/pkg/controller/regctl"
 	"reflect"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -78,6 +79,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &regv1.Registry{},
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -134,6 +143,7 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
 	subResourceLogger.Info("Creating all Subresources")
 
+	var requeueErr error = nil
 	collectSubController := collectSubController()
 	patchReg := reg.DeepCopy() // Target to Patch object
 
@@ -153,8 +163,15 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 		// Check if subresource is ready.
 		if err := sctl.Ready(r.client, reg, patchReg, false); err != nil {
 			subResourceLogger.Error(err, "Got an error in checking ready")
-			return err
+			if err.Error() == regv1.PodNotFound || err.Error() == regv1.ContainerStatusIsNil {
+				requeueErr = err
+			} else {
+				return err
+			}
 		}
+	}
+	if requeueErr != nil {
+		return requeueErr
 	}
 
 	return nil
@@ -224,5 +241,7 @@ func collectSubController() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
 	collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{})
+	// collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryDeployment{}, &regctl.RegistryPod{})
+	// collection = append(collection, &regctl.RegistryConfigMap{})
 	return collection
 }

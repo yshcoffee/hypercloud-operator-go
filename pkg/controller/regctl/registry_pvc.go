@@ -7,7 +7,6 @@ import (
 
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
-	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/status"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +19,7 @@ import (
 
 type RegistryPVC struct {
 	pvc    *corev1.PersistentVolumeClaim
-	logger logr.Logger
+	logger *utils.RegistryLogger
 }
 
 func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
@@ -70,7 +69,8 @@ func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, patchReg *reg
 
 func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry) error {
 	r.pvc = schemes.PersistentVolumeClaim(reg)
-	r.logger = utils.GetRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
+	// r.logger = utils.GetRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
+	r.logger = utils.NewRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
 
 	req := types.NamespacedName{Name: r.pvc.Name, Namespace: r.pvc.Namespace}
 	err := c.Get(context.TODO(), req, r.pvc)

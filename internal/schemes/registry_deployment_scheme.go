@@ -18,7 +18,7 @@ const (
 )
 
 func Deployment(reg *regv1.Registry) *appsv1.Deployment {
-	var resName, pvcMountPath, pvcName string
+	var resName, pvcMountPath, pvcName, configMapName string
 	resName = regv1.K8sPrefix + reg.Name
 	label := map[string]string{}
 	label["app"] = "registry"
@@ -38,6 +38,12 @@ func Deployment(reg *regv1.Registry) *appsv1.Deployment {
 
 	idPasswd := reg.Spec.LoginId + ":" + reg.Spec.LoginPassword
 	loginAuth := base64.StdEncoding.EncodeToString([]byte(idPasswd))
+
+	if len(reg.Spec.CustomConfigYml) != 0 {
+		configMapName = reg.Spec.CustomConfigYml
+	} else {
+		configMapName = regv1.K8sPrefix + reg.Name
+	}
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -178,6 +184,14 @@ func Deployment(reg *regv1.Registry) *appsv1.Deployment {
 						},
 					},
 					Volumes: []corev1.Volume{
+						corev1.Volume{
+							Name: "config",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{Name: configMapName},
+								},
+							},
+						},
 						corev1.Volume{
 							Name: "certs",
 							VolumeSource: corev1.VolumeSource{

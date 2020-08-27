@@ -7,7 +7,6 @@ import (
 
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
-	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/status"
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -21,7 +20,7 @@ import (
 
 type RegistryDeployment struct {
 	deploy *appsv1.Deployment
-	logger logr.Logger
+	logger *utils.RegistryLogger
 }
 
 func (r *RegistryDeployment) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
@@ -66,7 +65,7 @@ func (r *RegistryDeployment) Create(c client.Client, reg *regv1.Registry, patchR
 
 func (r *RegistryDeployment) get(c client.Client, reg *regv1.Registry) error {
 	r.deploy = schemes.Deployment(reg)
-	r.logger = utils.GetRegistryLogger(*r, r.deploy.Namespace, r.deploy.Name)
+	r.logger = utils.NewRegistryLogger(*r, r.deploy.Namespace, r.deploy.Name)
 
 	req := types.NamespacedName{Name: r.deploy.Name, Namespace: r.deploy.Namespace}
 
@@ -79,7 +78,7 @@ func (r *RegistryDeployment) get(c client.Client, reg *regv1.Registry) error {
 	return nil
 }
 
-func (r *RegistryDeployment) Patch(c client.Client, reg *regv1.Registry, useGet bool) error {
+func (r *RegistryDeployment) Patch(c client.Client, reg *regv1.Registry, patchJson []byte) error {
 	return nil
 }
 
@@ -92,11 +91,23 @@ func (r *RegistryDeployment) Ready(c client.Client, reg *regv1.Registry, patchRe
 		}
 	}
 
-	//condition := status.Condition{
-	//	Status: corev1.ConditionTrue,
-	//	Type:   regv1.ConditionTypeDeployment,
-	//}
+	if r.deploy == nil {
+		r.logger.Info("NotReady")
+		condition := status.Condition{
+			Status: corev1.ConditionFalse,
+			Type:   regv1.ConditionTypeDeployment,
+		}
 
-	//conditions.SetCondition(condition)
+		patchReg.Status.Conditions.SetCondition(condition)
+		return nil
+	}
+
+	r.logger.Info("Ready")
+	condition := status.Condition{
+		Status: corev1.ConditionTrue,
+		Type:   regv1.ConditionTypeDeployment,
+	}
+
+	patchReg.Status.Conditions.SetCondition(condition)
 	return nil
 }

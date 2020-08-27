@@ -3,11 +3,14 @@ package schemes
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 )
 
-func ConfigMap(reg *regv1.Registry) *corev1.ConfigMap {
+const DefaultConfigMapName = "registry-config"
+
+func ConfigMap(reg *regv1.Registry, data map[string]string) *corev1.ConfigMap {
 	var resName string
 	label := map[string]string{}
 	label["app"] = "registry"
@@ -25,5 +28,11 @@ func ConfigMap(reg *regv1.Registry) *corev1.ConfigMap {
 			Namespace: reg.Namespace,
 			Labels:    label,
 		},
+		Data: data,
 	}
+}
+
+func DefaultConfigMapType() *types.NamespacedName {
+	defaultCm := &types.NamespacedName{Name: DefaultConfigMapName, Namespace: regv1.OperatorNamespace}
+	return defaultCm
 }
