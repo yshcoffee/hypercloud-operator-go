@@ -29,7 +29,10 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 	}
 	secretType := corev1.SecretTypeOpaque
 	serviceType := reg.Spec.RegistryService.ServiceType
-	port := reg.Spec.RegistryService.Port
+	port := 443
+	if serviceType == regv1.RegServiceTypeLoadBalancer {
+		port = reg.Spec.RegistryService.LoadBalancer.Port
+	}
 	data := map[string][]byte{}
 	data["ID"] = []byte(reg.Spec.LoginId)
 	data["PASSWD"] = []byte(reg.Spec.LoginPassword)

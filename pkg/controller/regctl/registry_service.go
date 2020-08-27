@@ -2,7 +2,6 @@ package regctl
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	"hypercloud-operator-go/internal/schemes"
 	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
@@ -21,7 +20,7 @@ const ServiceTypeName = regv1.ConditionTypeService
 
 type RegistryService struct {
 	svc *corev1.Service
-	logger logr.Logger
+	logger *utils.RegistryLogger
 }
 
 func (r *RegistryService) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
@@ -61,7 +60,7 @@ func (r *RegistryService) Create(c client.Client, reg *regv1.Registry, patchReg 
 func (r *RegistryService) get(c client.Client, reg *regv1.Registry) error {
 	if r.svc == nil {
 		r.svc = schemes.Service(reg)
-		r.logger = utils.GetRegistryLogger(*r, r.svc.Namespace, r.svc.Name)
+		r.logger = utils.NewRegistryLogger(*r, r.svc.Namespace, r.svc.Name)
 	}
 
 	req := types.NamespacedName{Name: r.svc.Name, Namespace: r.svc.Namespace}
@@ -79,15 +78,16 @@ func (r *RegistryService) Patch(c client.Client, reg *regv1.Registry, json []byt
 }
 
 func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	var err error = nil
 	condition := status.Condition {
 		Status: corev1.ConditionFalse,
 		Type: ServiceTypeName,
 	}
+	defer utils.SetError(err, patchReg, condition)
 
 	if useGet {
-		if err := r.get(c, reg); err != nil {
+		if err = r.get(c, reg); err != nil {
 			r.logger.Error(err, "Getting Service error")
-			utils.SetError(err, patchReg, condition)
 			return err
 		}
 	}
@@ -104,18 +104,18 @@ func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *
 			}
 		} else if len(loadBalancer.Ingress) == 0 {
 			// Several Ingress
-			// [TODO] Is this error?
-			utils.SetError(nil, patchReg, condition)
 			return regv1.MakeRegistryError("NotReady")
 		}
 		reg.Spec.RegistryService.LoadBalancer.IP = lbIP
 		r.logger.Info("LoadBalancer info", "LoadBalancer IP", lbIP)
 	} else if r.svc.Spec.Type == corev1.ServiceTypeClusterIP {
-		r.logger.Info("Service Type is ClusterIp")
+		r.logger.Info("Service Type is ClusterIP(Ingress)")
 		// [TODO]
 	}
 	reg.Spec.RegistryService.ClusterIP = r.svc.Spec.ClusterIP
-	r.logger.Info("Succeed Info", "LoadBalancerIP", reg.Spec.RegistryService.LoadBalancer.IP, "ClusterIP", reg.Spec.RegistryService.ClusterIP)
+	condition.Status = corev1.ConditionTrue
+	err = nil
+	r.logger.Info("Succeed")
 	return nil
 }
 

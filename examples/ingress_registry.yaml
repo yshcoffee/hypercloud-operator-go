@@ -18,9 +18,9 @@ spec:
       #ingress:
       #port: 0
       #domainName: 172.22.11.15.nip.io
-    serviceType: LoadBalancer
-    loadBalancer:
-      port: 443
+    serviceType: Ingress 
+    ingress:
+      domainName: 172.22.11.21.nip.io
   persistentVolumeClaim:
     mountPath: /var/lib/registry
       #exist:

@@ -144,7 +144,7 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 	subResourceLogger.Info("Creating all Subresources")
 
 	var requeueErr error = nil
-	collectSubController := collectSubController()
+	collectSubController := collectSubController(reg.Spec.RegistryService.ServiceType)
 	patchReg := reg.DeepCopy() // Target to Patch object
 
 	defer r.patch(reg, patchReg)
@@ -237,11 +237,14 @@ func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
 	return nil
 }
 
-func collectSubController() []regctl.RegistrySubresource {
+func collectSubController(serviceType regv1.RegistryServiceType) []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	// collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{}, &regctl.RegistryDCJSecret{})
-	// collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryDeployment{}, &regctl.RegistryPod{})
-	collection = append(collection, &regctl.RegistryConfigMap{})
+
+	collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{},
+					&regctl.RegistryDCJSecret{})
+	if serviceType == "Ingress" {
+		collection = append(collection, &regctl.RegistryIngress{})
+	}
 	return collection
 }

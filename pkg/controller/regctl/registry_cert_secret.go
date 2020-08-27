@@ -104,12 +104,8 @@ func (r *RegistryCertSecret) Patch(c client.Client, reg *regv1.Registry, json []
 }
 
 func (r *RegistryCertSecret) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	if useGet {
-		if err := r.get(c, reg); err != nil {
-			r.logger.Error(err, "Get failed")
-			return err
-		}
-	}
+	var opaqueErr error = nil
+	var err error = nil
 
 	condition := status.Condition{
 		Status: corev1.ConditionFalse,
@@ -121,33 +117,42 @@ func (r *RegistryCertSecret) Ready(c client.Client, reg *regv1.Registry, patchRe
 		Type:   regv1.ConditionTypeSecretTls,
 	}
 
+	defer utils.SetError(opaqueErr, patchReg, condition)
+
+	if useGet {
+		if opaqueErr = r.get(c, reg); opaqueErr != nil {
+			r.logger.Error(opaqueErr, "Get failed")
+			return opaqueErr
+		}
+	}
+
 	// DATA Check
-	err := regv1.MakeRegistryError("Secret Opaque Error")
+	opaqueErr = regv1.MakeRegistryError("Secret Opaque Error")
 	if _, ok := r.secretOpaque.Data[schemes.CertCrtFile]; !ok {
-		r.logger.Error(err, "No certificate in data")
-		utils.SetError(err, patchReg, condition)
+		r.logger.Error(opaqueErr, "No certificate in data")
 		return nil
 	}
 
 	if _, ok := r.secretOpaque.Data[schemes.CertKeyFile]; !ok {
-		r.logger.Error(err, "No private key in data")
-		utils.SetError(err, patchReg, condition)
+		r.logger.Error(opaqueErr, "No private key in data")
 		return nil
 	}
+	condition.Status = corev1.ConditionTrue
 
+	defer utils.SetError(err, patchReg, tlsCondition)
 	err = regv1.MakeRegistryError("Secret TLS Error")
 	if _, ok := r.secretTLS.Data[schemes.TLSCert]; !ok {
 		r.logger.Error(err, "No certificate in data")
-		utils.SetError(err, patchReg, tlsCondition)
 		return nil
 	}
 
 	if _, ok := r.secretTLS.Data[schemes.TLSKey]; !ok {
 		r.logger.Error(err, "No private key in data")
-		utils.SetError(err, patchReg, tlsCondition)
 		return nil
 	}
 
+	tlsCondition.Status = corev1.ConditionTrue
+	err = nil
 	r.logger.Info("Succeed")
 	return nil
 }

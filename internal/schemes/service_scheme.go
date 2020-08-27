@@ -12,9 +12,6 @@ const (
 	RegistryTargetPort   = 443
 	RegistryPortProtocol = "TCP"
 	RegistryPortName     = "tls"
-
-	Ingress = "Ingress"
-	LoadBalancer = "LoadBalancer"
 )
 
 func Service(reg *regv1.Registry) *corev1.Service {
@@ -22,8 +19,14 @@ func Service(reg *regv1.Registry) *corev1.Service {
 	label := utils.GetLabel(reg)
 	label["app"] = "registry"
 	label["apps"] = regv1.K8sPrefix + reg.Name
-	port := reg.Spec.RegistryService.Port
+	port := 443
+
 	serviceName := reg.Spec.RegistryService.ServiceType
+	if serviceName == regv1.RegServiceTypeLoadBalancer {
+		port = reg.Spec.RegistryService.LoadBalancer.Port
+	} else {
+		serviceName = regv1.RegServiceTypeIngress
+	}
 	utils.GetRegistryLogger(corev1.Service{}, reg.Namespace, reg.Name).Info("ServiceType", "Type", serviceName)
 
 	return &corev1.Service{
