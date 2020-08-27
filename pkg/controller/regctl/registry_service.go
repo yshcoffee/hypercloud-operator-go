@@ -115,7 +115,7 @@ func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *
 		// [TODO]
 	}
 	reg.Spec.RegistryService.ClusterIP = r.svc.Spec.ClusterIP
-	r.logger.Info("Succeed")
+	r.logger.Info("Succeed Info", "LoadBalancerIP", reg.Spec.RegistryService.LoadBalancer.IP, "ClusterIP", reg.Spec.RegistryService.ClusterIP)
 	return nil
 }
 

@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math/big"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -23,8 +24,10 @@ const (
 
 func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 	logger := utils.GetRegistryLogger(corev1.Secret{}, reg.Namespace, reg.Name + "secret")
+	if (!regBodyCheckForSecrets(reg)) {
+		return nil, nil
+	}
 	secretType := corev1.SecretTypeOpaque
-	secretName := regv1.K8sPrefix + reg.Name
 	serviceType := reg.Spec.RegistryService.ServiceType
 	port := reg.Spec.RegistryService.Port
 	data := map[string][]byte{}
@@ -67,7 +70,7 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 
 	return &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: secretName,
+				Name: regv1.K8sPrefix + strings.ToLower(reg.Name),
 				Namespace: reg.Namespace,
 				Labels: map[string]string {
 					"secret": "cert",
@@ -78,7 +81,7 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 		},
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta {
-				Name: reg.Name,
+				Name: regv1.K8sPrefix + regv1.TLSPrefix + strings.ToLower(reg.Name),
 				Namespace: reg.Namespace,
 				Labels: map[string]string {
 					"secret": "tls",
@@ -141,4 +144,17 @@ func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 	}
 
 	return serverCertBytes, privateKey, nil
+}
+
+func regBodyCheckForSecrets(reg *regv1.Registry) bool {
+	regService := reg.Spec.RegistryService
+	if (regService.ClusterIP == "") {
+		return false
+	}
+	if (regService.ServiceType == regv1.RegServiceTypeLoadBalancer && regService.LoadBalancer.IP == "" ) {
+		return false
+	} else if (regService.ServiceType == regv1.RegServiceTypeIngress && regService.Ingress.DomainName == "") {
+		return false
+	}
+	return true
 }

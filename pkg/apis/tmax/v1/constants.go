@@ -2,6 +2,8 @@ package v1
 
 const (
 	K8sPrefix = "hpcd-"
+	TLSPrefix = "tls-"
+	K8sRegistryPrefix = "registry-"
 
 	CustomObjectGroup = "tmax.io"
 
