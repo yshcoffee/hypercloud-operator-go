@@ -80,7 +80,7 @@ func (r *RegistryCertSecret) get(c client.Client, reg *regv1.Registry) error {
 		return regv1.MakeRegistryError("Registry has no fields Secrets required")
 	}
 
-	r.logger = utils.GetRegistryLogger(*r, r.secretOpaque.Namespace, r.secretOpaque.Name)
+	r.logger = utils.NewRegistryLogger(*r, r.secretOpaque.Namespace, r.secretOpaque.Name)
 
 	req := types.NamespacedName{Name: r.secretOpaque.Name, Namespace: r.secretOpaque.Namespace}
 	if err := c.Get(context.TODO(), req, r.secretOpaque); err != nil {

@@ -41,9 +41,18 @@ func (r *RegistryConfigMap) Create(c client.Client, reg *regv1.Registry, patchRe
 	defaultCm := &corev1.ConfigMap{}
 	defaultCmType := schemes.DefaultConfigMapType()
 
+	r.logger.Info("defaultConfigmap", "name", defaultCmType.Name, "ns", defaultCmType.Namespace)
 	// Read Default ConfigMap
-	c.Get(context.TODO(), *defaultCmType, defaultCm)
-	r.logger.Info("defaultConfigmap", "contents", defaultCm.String())
+
+	if err := c.Get(context.TODO(), *defaultCmType, defaultCm); err != nil {
+		r.logger.Error(err, "get default configmap error")
+		return nil
+	}
+
+	for key, val := range defaultCm.Data {
+		r.logger.Info("defaultConfigmap", key, val)
+	}
+	// cmContent, _ := defaultCm.Data["config.yml"]
 
 	r.cm = schemes.ConfigMap(reg, defaultCm.Data)
 

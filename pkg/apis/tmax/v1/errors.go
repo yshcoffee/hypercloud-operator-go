@@ -30,3 +30,11 @@ func (r RegistryErrors) Error() string {
 
 	return *r.errorMessage
 }
+
+func IsPodError(err error) bool {
+	if err.Error() == PodNotFound || err.Error() == ContainerStatusIsNil {
+		return true
+	}
+
+	return false
+}
