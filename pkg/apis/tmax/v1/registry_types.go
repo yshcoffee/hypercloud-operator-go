@@ -44,7 +44,7 @@ type RegistryDeployment struct {
 type RegistryServiceType string
 const (
 	RegServiceTypeLoadBalancer = "LoadBalancer"
-	RegServiceTypeIngress = "Ingress"
+	RegServiceTypeIngress = "ClusterIP"
 )
 
 type RegistryService struct {
@@ -58,8 +58,6 @@ type RegistryService struct {
 
 	ClusterIP string `json:"clusterIP,omitempty"`
 
-	// external port. Generally use 443 port
-	Port int `json:"port",default:"443"`
 }
 
 type RegistryPVC struct {

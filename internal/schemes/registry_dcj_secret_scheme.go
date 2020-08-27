@@ -27,14 +27,15 @@ func DCJSecret(reg *regv1.Registry) *corev1.Secret {
 	}
 	serviceType := reg.Spec.RegistryService.ServiceType
 	var domainList []string
-	port := reg.Spec.RegistryService.Port
+	port := 443
 	data := map[string][]byte{}
-	domainList = append(domainList, reg.Spec.RegistryService.ClusterIP + ":" + strconv.Itoa(port))
 	if serviceType == regv1.RegServiceTypeLoadBalancer {
+		port = reg.Spec.RegistryService.LoadBalancer.Port
 		domainList = append(domainList, reg.Spec.RegistryService.LoadBalancer.IP + ":" + strconv.Itoa(port))
 	} else {
 		domainList = append(domainList, reg.Name + "." + reg.Spec.RegistryService.Ingress.DomainName + ":" + strconv.Itoa(port))
 	}
+	domainList = append(domainList, reg.Spec.RegistryService.ClusterIP + ":" + strconv.Itoa(port))
 
 	config := DockerConfig{
 		Auths: map[string]AuthValue{},

@@ -2,7 +2,6 @@ package regctl
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	"github.com/operator-framework/operator-sdk/pkg/status"
 	"hypercloud-operator-go/internal/schemes"
 	"hypercloud-operator-go/internal/utils"
@@ -21,7 +20,7 @@ const (
 
 type RegistryDCJSecret struct {
 	secretDCJ *corev1.Secret
-	logger    logr.Logger
+	logger    *utils.RegistryLogger
 }
 
 func (r *RegistryDCJSecret) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
@@ -62,7 +61,7 @@ func (r *RegistryDCJSecret) get(c client.Client, reg *regv1.Registry) error {
 	if r.secretDCJ == nil {
 		return regv1.MakeRegistryError("Registry has no fields DCJ Secret required")
 	}
-	r.logger = utils.GetRegistryLogger(*r, r.secretDCJ.Namespace, r.secretDCJ.Name)
+	r.logger = utils.NewRegistryLogger(*r, r.secretDCJ.Namespace, r.secretDCJ.Name)
 
 	req := types.NamespacedName{Name: r.secretDCJ.Name, Namespace: r.secretDCJ.Namespace}
 	if err := c.Get(context.TODO(), req, r.secretDCJ); err != nil {
@@ -79,25 +78,29 @@ func (r *RegistryDCJSecret) Patch(c client.Client, reg *regv1.Registry, json []b
 }
 
 func (r *RegistryDCJSecret) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	if useGet {
-		if err := r.get(c, reg); err != nil {
-			r.logger.Error(err, "Get failed")
-			return err
-		}
-	}
-
+	var err error = nil
 	condition := status.Condition {
 		Status: corev1.ConditionFalse,
 		Type: SecretDCJTypeName,
 	}
 
-	err := regv1.MakeRegistryError("Secret DCJ Error")
+	defer utils.SetError(err, patchReg, condition)
+
+	if useGet {
+		if err = r.get(c, reg); err != nil {
+			r.logger.Error(err, "Get failed")
+			return err
+		}
+	}
+
+	err = regv1.MakeRegistryError("Secret DCJ Error")
 	if _, ok := r.secretDCJ.Data[schemes.DockerConfigJson]; !ok {
 		r.logger.Error(err, "No certificate in data")
-		utils.SetError(err, patchReg, condition)
 		return nil
 	}
 
+	condition.Status = corev1.ConditionTrue
+	err = nil
 	r.logger.Info("Succeed")
 	return nil
 }
