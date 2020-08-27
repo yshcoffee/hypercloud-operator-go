@@ -240,7 +240,7 @@ func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
 func collectSubController() []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{})
+	collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{}, &regctl.RegistryDCJSecret{})
 	// collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryDeployment{}, &regctl.RegistryPod{})
 	// collection = append(collection, &regctl.RegistryConfigMap{})
 	return collection
