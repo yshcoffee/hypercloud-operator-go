@@ -24,6 +24,7 @@ func Deployment(reg *regv1.Registry) *appsv1.Deployment {
 	label := map[string]string{}
 	label["app"] = "registry"
 	label["apps"] = resName
+	label[resName] = "lb"
 
 	if len(reg.Spec.PersistentVolumeClaim.MountPath) == 0 {
 		pvcMountPath = RegistryPVCMountPath
