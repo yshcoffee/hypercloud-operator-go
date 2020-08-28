@@ -56,14 +56,13 @@ func UpdateRegistryStatus(c client.Client, reg *regv1.Registry) bool {
 	}
 
 	reqLogger.Info("Get desired status.")
-	for _, t := range falseTypes {
-		if len(falseTypes) > 1 {
-			desiredStatus = regv1.StatusCreating
-		} else if len(falseTypes) == 1 && t == regv1.ConditionTypePod {
-			desiredStatus = regv1.StatusNotReady
-		} else {
-			desiredStatus = regv1.StatusRunning
-		}
+
+	if len(falseTypes) > 1 {
+		desiredStatus = regv1.StatusCreating
+	} else if len(falseTypes) == 1 && falseTypes[0] == regv1.ConditionTypeContainer {
+		desiredStatus = regv1.StatusNotReady
+	} else {
+		desiredStatus = regv1.StatusRunning
 	}
 
 	// Chcck if current status is desired status. If does not same, patch the status.
