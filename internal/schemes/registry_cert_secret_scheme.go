@@ -5,12 +5,14 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"math/big"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,12 +43,12 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 	if serviceType == regv1.RegServiceTypeIngress {
 		registryDomainName := reg.Name +  "." + reg.Spec.RegistryService.Ingress.DomainName
 		data["DOMAIN_NAME"] = []byte(registryDomainName)
-		data["REGISTRY_URL"] = []byte(registryDomainName + ":" + string(port))
+		data["REGISTRY_URL"] = []byte(registryDomainName + ":" + strconv.Itoa(port))
 	} else if serviceType == regv1.RegServiceTypeLoadBalancer {
 		data["LB_IP"] = []byte(reg.Spec.RegistryService.LoadBalancer.IP)
-		data["REGISTRY_URL"] = []byte(reg.Spec.RegistryService.LoadBalancer.IP + ":" + string(port))
+		data["REGISTRY_URL"] = []byte(reg.Spec.RegistryService.LoadBalancer.IP + ":" + strconv.Itoa(port))
 	} else {
-		data["REGISTRY_URL"] = []byte(reg.Spec.RegistryService.ClusterIP + ":" + string(port))
+		data["REGISTRY_URL"] = []byte(reg.Spec.RegistryService.ClusterIP + ":" + strconv.Itoa(port))
 	}
 
 	// parentCert, parentPrivateKey == nil ==> Self Signed Certificate
@@ -58,7 +60,9 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 	}
 	logger.Info("Create Certificate Succeed")
 	data[CertCrtFile] = certificateBytes // have to do parse
-	data[CertKeyFile] = x509.MarshalPKCS1PrivateKey(privateKey) // have to do unmarshal
+	privateBytes, _ := x509.MarshalPKCS8PrivateKey(privateKey) // have to do unmarshal
+
+	data[CertKeyFile] = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateBytes})
 
 	logger.Info("Create Secret Opaque Succeed")
 
@@ -142,11 +146,15 @@ func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 		return nil, nil, err
 	}
 
-	if _, err = x509.ParseCertificate(serverCertBytes); err != nil {
+	serverCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCertBytes});
+
+	_, erro := x509.ParseCertificate(serverCertBytes)
+	if erro != nil {
 		return nil, nil, err
 	}
+	//utils.NewRegistryLogger(regv1.Registry{}, reg.Namespace, reg.Name).Info("Cert Test", "Cert", certifi.Raw)
 
-	return serverCertBytes, privateKey, nil
+	return serverCertPEM, privateKey, nil
 }
 
 func regBodyCheckForSecrets(reg *regv1.Registry) bool {
