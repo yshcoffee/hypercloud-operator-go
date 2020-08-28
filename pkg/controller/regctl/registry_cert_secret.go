@@ -26,12 +26,12 @@ type RegistryCertSecret struct {
 }
 
 func (r *RegistryCertSecret) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	condition := status.Condition{
+	condition := &status.Condition{
 		Status: corev1.ConditionFalse,
 		Type:   SecretOpaqueTypeName,
 	}
 
-	tlsCondition := status.Condition{
+	tlsCondition := &status.Condition{
 		Status: corev1.ConditionFalse,
 		Type:   SecretTLSTypeName,
 	}
@@ -107,12 +107,12 @@ func (r *RegistryCertSecret) Ready(c client.Client, reg *regv1.Registry, patchRe
 	var opaqueErr error = nil
 	var err error = nil
 
-	condition := status.Condition{
+	condition := &status.Condition{
 		Status: corev1.ConditionFalse,
 		Type:   regv1.ConditionTypeSecretOpaque,
 	}
 
-	tlsCondition := status.Condition{
+	tlsCondition := &status.Condition{
 		Status: corev1.ConditionFalse,
 		Type:   regv1.ConditionTypeSecretTls,
 	}
