@@ -3,6 +3,7 @@ package schemes
 import (
 	"encoding/base64"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -99,7 +100,7 @@ func Deployment(reg *regv1.Registry) *appsv1.Deployment {
 								},
 								{
 									Name:  "REGISTRY_HTTP_ADDR",
-									Value: string("0.0.0.0:") + string(RegistryTargetPort),
+									Value: string("0.0.0.0:") + strconv.Itoa(RegistryTargetPort),
 								},
 								{
 									Name:  "REGISTRY_HTTP_TLS_CERTIFICATE",

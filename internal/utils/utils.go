@@ -12,10 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func GetLabel(reg *regv1.Registry) map[string]string {
-	return map[string]string{}
-}
-
 // Use for GetRegistryLogger
 func getFuncName() string {
 	pc := make([]uintptr, 15)
