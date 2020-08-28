@@ -9,7 +9,6 @@ import (
 const (
 	RegistryLoginUrl = CustomObjectGroup + "/registry-login-url"
 	RegistryKind     = "Registry"
-
 )
 
 // RegistrySpec defines the desired state of Registry
@@ -42,9 +41,10 @@ type RegistryDeployment struct {
 }
 
 type RegistryServiceType string
+
 const (
 	RegServiceTypeLoadBalancer = "LoadBalancer"
-	RegServiceTypeIngress = "ClusterIP"
+	RegServiceTypeIngress      = "ClusterIP"
 )
 
 type RegistryService struct {
@@ -57,7 +57,6 @@ type RegistryService struct {
 	LoadBalancer LoadBalancer `json:"loadBalancer,omitempty"`
 
 	ClusterIP string `json:"clusterIP,omitempty"`
-
 }
 
 type RegistryPVC struct {
@@ -77,12 +76,13 @@ type RegistryStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 
-	Conditions     status.Conditions `json:"conditions"`
-	Phase          string            `json:"phase"`
-	Message        string            `json:"message"`
-	Reason         string            `json:"reason"`
-	PhaseChangedAt metav1.Time       `json:"phaseChangedAt"`
-	Capacity       string            `json:"capacity"`
+	Conditions      status.Conditions `json:"conditions"`
+	Phase           string            `json:"phase"`
+	Message         string            `json:"message"`
+	Reason          string            `json:"reason"`
+	PhaseChangedAt  metav1.Time       `json:"phaseChangedAt"`
+	Capacity        string            `json:"capacity"`
+	LastAppliedSpec string            `json:"lastAppliedSpec,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -100,7 +100,6 @@ type Registry struct {
 
 	Spec   RegistrySpec   `json:"spec"`
 	Status RegistryStatus `json:"status,omitempty"`
-
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

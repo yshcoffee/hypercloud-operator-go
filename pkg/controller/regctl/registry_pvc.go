@@ -106,6 +106,8 @@ func (r *RegistryPVC) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 		return nil
 	}
 
+	patchReg.Status.Capacity = r.pvc.Status.Capacity.Storage().String()
+
 	r.logger.Info("Ready")
 	condition := status.Condition{
 		Status: corev1.ConditionTrue,

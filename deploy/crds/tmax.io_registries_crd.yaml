@@ -43,8 +43,6 @@ spec:
           type: string
         metadata:
           type: object
-        operatorStartTime:
-          type: string
         spec:
           description: RegistrySpec defines the desired state of Registry
           properties:
@@ -208,28 +206,34 @@ spec:
             service:
               description: Supported service types are ingress and loadBalancer
               properties:
+                clusterIP:
+                  type: string
                 ingress:
                   description: use ingress service type
                   properties:
                     domainName:
-                      description: '(example: 192.168.6.110.nip.io)'
+                      description: '[TODO] Minimum, Maximum (example: 192.168.6.110.nip.io)'
+                      type: string
+                  required:
+                  - domainName
+                  type: object
+                loadBalancer:
+                  description: use loadBalancer service type
+                  properties:
+                    ip:
+                      description: '[TODO] Minimum, Maximum'
                       type: string
                     port:
                       description: external port. Generally use 443 port
                       type: integer
                   required:
-                  - domainName
                   - port
                   type: object
-                loadBalancer:
-                  description: use loadBalancer service type
-                  properties:
-                    port:
-                      description: external port. Generally use 443 port
-                      type: integer
-                  required:
-                  - port
-                  type: object
+                serviceType:
+                  description: use Ingress or LoadBalancer
+                  type: string
+              required:
+              - serviceType
               type: object
           required:
           - image
@@ -283,6 +287,8 @@ spec:
                 - type
                 type: object
               type: array
+            lastAppliedSpec:
+              type: string
             message:
               type: string
             phase:

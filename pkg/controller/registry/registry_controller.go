@@ -79,6 +79,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &regv1.Registry{},
+	})
+	if err != nil {
+		return err
+	}
+
 	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &regv1.Registry{},
@@ -149,6 +157,9 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 
 	defer r.patch(reg, patchReg)
 
+	regSpec, _ := json.Marshal(reg.Spec)
+	patchReg.Status.LastAppliedSpec = string(regSpec)
+
 	// Check if subresources are created.
 	for _, sctl := range collectSubController {
 		subresourceType := reflect.TypeOf(sctl).String()
@@ -163,7 +174,7 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 		// Check if subresource is ready.
 		if err := sctl.Ready(r.client, reg, patchReg, false); err != nil {
 			subResourceLogger.Error(err, "Got an error in checking ready")
-			if err.Error() == regv1.PodNotFound || err.Error() == regv1.ContainerStatusIsNil {
+			if regv1.IsPodError(err) {
 				requeueErr = err
 			} else {
 				return err
@@ -175,6 +186,19 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 	}
 
 	return nil
+}
+
+func updateAllSubresources(reg *regv1.Registry) bool {
+	if reg.Status.Phase != string(regv1.StatusRunning) {
+		return false
+	}
+
+	// lastRegSpec := reg.Status.LastAppliedSpec
+	// curRegSpec := reg.Spec
+	// opts := jsondiff.DefaultJSONOptions()
+	// jsondiff.Compare(lastRegSpec, curRegSpec)
+
+	return true
 }
 
 func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
@@ -241,8 +265,9 @@ func collectSubController(serviceType regv1.RegistryServiceType) []regctl.Regist
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
 
-	collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{},
-					&regctl.RegistryDCJSecret{})
+	// collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{}, &regctl.RegistryCertSecret{},
+	// 	&regctl.RegistryDCJSecret{}, &regctl.RegistryConfigMap{}, &regctl.RegistryDeployment{}, &regctl.RegistryPod{})
+	collection = append(collection, &regctl.RegistryPVC{})
 	if serviceType == "Ingress" {
 		collection = append(collection, &regctl.RegistryIngress{})
 	}
