@@ -240,9 +240,8 @@ func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
 func collectSubController(serviceType regv1.RegistryServiceType) []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-
-	collection = append(collection, &regctl.RegistryService{}, &regctl.RegistryCertSecret{},
-					&regctl.RegistryDCJSecret{})
+	collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{}, &regctl.RegistryCertSecret{},
+		&regctl.RegistryDCJSecret{}, &regctl.RegistryConfigMap{}, &regctl.RegistryDeployment{}, &regctl.RegistryPod{})
 	if serviceType == "Ingress" {
 		collection = append(collection, &regctl.RegistryIngress{})
 	}

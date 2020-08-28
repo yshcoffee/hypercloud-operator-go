@@ -33,7 +33,7 @@ func (r *RegistryDCJSecret) Create(c client.Client, reg *regv1.Registry, patchRe
 		err := r.get(c, reg)
 		if err != nil && !errors.IsNotFound(err) {
 			r.logger.Error(err, "Getting Secret failed")
-			utils.SetError(err, patchReg, condition)
+			utils.SetError(err, patchReg, &condition)
 			return err
 		} else if err == nil {
 			r.logger.Info("Secret already exist")
@@ -42,13 +42,13 @@ func (r *RegistryDCJSecret) Create(c client.Client, reg *regv1.Registry, patchRe
 	}
 
 	if err := controllerutil.SetControllerReference(reg, r.secretDCJ, scheme); err != nil {
-		utils.SetError(err, patchReg, condition)
+		utils.SetError(err, patchReg, &condition)
 		return err
 	}
 
 	if err := c.Create(context.TODO(), r.secretDCJ); err != nil {
 		r.logger.Error(err, "Create failed")
-		utils.SetError(err, patchReg, condition)
+		utils.SetError(err, patchReg, &condition)
 		return err
 	}
 
@@ -84,7 +84,7 @@ func (r *RegistryDCJSecret) Ready(c client.Client, reg *regv1.Registry, patchReg
 		Type: SecretDCJTypeName,
 	}
 
-	defer utils.SetError(err, patchReg, condition)
+	defer utils.SetError(err, patchReg, &condition)
 
 	if useGet {
 		if err = r.get(c, reg); err != nil {

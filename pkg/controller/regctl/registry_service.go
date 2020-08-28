@@ -24,7 +24,7 @@ type RegistryService struct {
 }
 
 func (r *RegistryService) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	condition := status.Condition {
+	condition := &status.Condition {
 		Status: corev1.ConditionFalse,
 		Type: ServiceTypeName,
 	}
@@ -79,7 +79,7 @@ func (r *RegistryService) Patch(c client.Client, reg *regv1.Registry, json []byt
 
 func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
 	var err error = nil
-	condition := status.Condition {
+	condition := &status.Condition {
 		Status: corev1.ConditionFalse,
 		Type: ServiceTypeName,
 	}

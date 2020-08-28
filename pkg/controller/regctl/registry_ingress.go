@@ -32,7 +32,7 @@ func (r *RegistryIngress) Create(c client.Client, reg *regv1.Registry, patchReg 
 		err := r.get(c, reg)
 		if err != nil && !errors.IsNotFound(err) {
 			r.logger.Error(err, "Getting Ingress failed")
-			utils.SetError(err, patchReg, condition)
+			utils.SetError(err, patchReg, &condition)
 			return err
 		} else if err == nil {
 			r.logger.Info("Ingress already exist")
@@ -42,13 +42,13 @@ func (r *RegistryIngress) Create(c client.Client, reg *regv1.Registry, patchReg 
 
 	if err := controllerutil.SetControllerReference(reg, r.ingress, scheme); err != nil {
 		r.logger.Error(err, "Controller reference failed")
-		utils.SetError(err, patchReg, condition)
+		utils.SetError(err, patchReg, &condition)
 		return err
 	}
 
 	if err := c.Create(context.TODO(), r.ingress); err != nil {
 		r.logger.Error(err, "Create failed")
-		utils.SetError(err, patchReg, condition)
+		utils.SetError(err, patchReg, &condition)
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (r *RegistryIngress) Ready(c client.Client, reg *regv1.Registry, patchReg *
 		Type: IngressTypeName,
 	}
 
-	defer utils.SetError(err, patchReg, condition)
+	defer utils.SetError(err, patchReg, &condition)
 
 	if useGet {
 		if err = r.get(c, reg); err != nil {
