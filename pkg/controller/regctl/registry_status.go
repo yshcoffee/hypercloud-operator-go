@@ -2,6 +2,8 @@ package regctl
 
 import (
 	"context"
+	"encoding/json"
+	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -11,6 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/r3labs/diff"
 )
 
 // UpdateRegistryStatus ...
@@ -56,6 +60,8 @@ func UpdateRegistryStatus(c client.Client, reg *regv1.Registry) bool {
 	}
 
 	reqLogger.Info("Get desired status.")
+
+	compareSpecAndUpdate(reg)
 
 	if len(falseTypes) > 1 {
 		desiredStatus = regv1.StatusCreating
@@ -121,7 +127,8 @@ func InitRegistryStatus(c client.Client, reg *regv1.Registry) {
 	reg.Status.Reason = "Creating"
 	reg.Status.Phase = string(regv1.StatusCreating)
 	reg.Status.PhaseChangedAt = metav1.Now()
-	reg.Status.LastAppliedSpec = ""
+	regSpec, _ := json.Marshal(reg.Spec)
+	reg.Status.LastAppliedSpec = string(regSpec)
 
 	err := c.Status().Update(context.TODO(), reg)
 	if err != nil {
@@ -146,4 +153,19 @@ func getCheckTypes(reg *regv1.Registry) []status.ConditionType {
 	}
 
 	return checkTypes
+}
+
+func compareSpecAndUpdate(reg *regv1.Registry) diff.Changelog {
+	logger := utils.NewRegistryLogger(regv1.RegistrySpec{}, reg.Namespace, reg.Name)
+	oldSpec := regv1.RegistrySpec{}
+	json.Unmarshal([]byte(reg.Status.LastAppliedSpec), &oldSpec)
+	changeLog, err := diff.Diff(oldSpec, reg.Spec)
+	if err != nil {
+		logger.Error(err, "Error in diff")
+		return nil
+	}
+
+	regSpec, _ := json.Marshal(reg.Spec)
+	reg.Status.LastAppliedSpec = string(regSpec)
+	return changeLog
 }

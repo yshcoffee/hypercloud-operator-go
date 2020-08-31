@@ -157,8 +157,6 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 
 	defer r.patch(reg, patchReg)
 
-	regSpec, _ := json.Marshal(reg.Spec)
-	patchReg.Status.LastAppliedSpec = string(regSpec)
 
 	// Check if subresources are created.
 	for _, sctl := range collectSubController {
