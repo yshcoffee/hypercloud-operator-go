@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
 	"reflect"
 
+	"github.com/r3labs/diff"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -138,7 +140,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, nil
 	}
 
-	if err = r.createAllSubresources(reg); err != nil {
+	if err = r.handleAllSubresources(reg); err != nil {
 		reqLogger.Error(err, "Subresource creation failed")
 		return reconcile.Result{}, err
 	}
@@ -147,24 +149,24 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { // if want to requeue, return true
+func (r *ReconcileRegistry) handleAllSubresources(reg *regv1.Registry) error { // if want to requeue, return true
 	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
 	subResourceLogger.Info("Creating all Subresources")
 
 	var requeueErr error = nil
 	collectSubController := collectSubController(reg.Spec.RegistryService.ServiceType)
 	patchReg := reg.DeepCopy() // Target to Patch object
+	chSpec := compareSpecAndUpdate(reg)
 
 	defer r.patch(reg, patchReg)
-
 
 	// Check if subresources are created.
 	for _, sctl := range collectSubController {
 		subresourceType := reflect.TypeOf(sctl).String()
 		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
 
-		// Check if subresource is Created.
-		if err := sctl.Create(r.client, reg, patchReg, r.scheme, true); err != nil {
+		// Check if subresource is handled.
+		if err := sctl.Handle(r.client, reg, patchReg, r.scheme, chSpec, true); err != nil {
 			subResourceLogger.Error(err, "Got an error in creating subresource ")
 			return err
 		}
@@ -184,19 +186,6 @@ func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { /
 	}
 
 	return nil
-}
-
-func updateAllSubresources(reg *regv1.Registry) bool {
-	if reg.Status.Phase != string(regv1.StatusRunning) {
-		return false
-	}
-
-	// lastRegSpec := reg.Status.LastAppliedSpec
-	// curRegSpec := reg.Spec
-	// opts := jsondiff.DefaultJSONOptions()
-	// jsondiff.Compare(lastRegSpec, curRegSpec)
-
-	return true
 }
 
 func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
@@ -268,4 +257,19 @@ func collectSubController(serviceType regv1.RegistryServiceType) []regctl.Regist
 		collection = append(collection, &regctl.RegistryIngress{})
 	}
 	return collection
+}
+
+func compareSpecAndUpdate(reg *regv1.Registry) diff.Changelog {
+	logger := utils.NewRegistryLogger(regv1.RegistrySpec{}, reg.Namespace, reg.Name)
+	oldSpec := regv1.RegistrySpec{}
+	json.Unmarshal([]byte(reg.Status.LastAppliedSpec), &oldSpec)
+	changeLog, err := diff.Diff(oldSpec, reg.Spec)
+	if err != nil {
+		logger.Error(err, "Error in diff")
+		return nil
+	}
+
+	regSpec, _ := json.Marshal(reg.Spec)
+	reg.Status.LastAppliedSpec = string(regSpec)
+	return changeLog
 }

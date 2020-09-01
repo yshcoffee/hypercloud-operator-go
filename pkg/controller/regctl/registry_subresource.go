@@ -1,6 +1,7 @@
 package regctl
 
 import (
+	"github.com/r3labs/diff"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -8,15 +9,11 @@ import (
 )
 
 type RegistrySubresource interface {
-	Create(client.Client, *regv1.Registry, *regv1.Registry, *runtime.Scheme, bool) error
-	//Get(client.Client, *regv1.Registry, *status.Condition) error
-	get(client.Client, *regv1.Registry) error
-	// GetTypeName() string
-	Patch(client.Client, *regv1.Registry, []byte) error
-	// RegistryPatch(client.Client, *regv1.Registry, *regv1.Registry, bool) error
-	// [TODO] If not Ready
+	Handle(client.Client, *regv1.Registry, *regv1.Registry, *runtime.Scheme, diff.Changelog, bool) error
 	Ready(client.Client, *regv1.Registry, *regv1.Registry, bool) error
-	// StatusPatch(client.Client, *regv1.Registry, *regv1.Registry, bool) error
-	// StatusUpdate(client.Client, *regv1.Registry, *regv1.Registry, bool) error
-	// Update(client.Client, *regv1.Registry, interface{}, bool) error
+
+	create(client.Client, *regv1.Registry, *regv1.Registry, *runtime.Scheme, bool) error
+	get(client.Client, *regv1.Registry) error
+	patch(client.Client, *regv1.Registry, diff.Changelog) error
+	delete(client.Client, *regv1.Registry, *regv1.Registry, bool) error
 }

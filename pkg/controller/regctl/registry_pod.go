@@ -69,6 +69,32 @@ func (r *RegistryPod) Patch(c client.Client, reg *regv1.Registry, patchJson []by
 	return nil
 }
 
+func (r *RegistryPod) Delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	if r.pod == nil || useGet {
+		err := r.get(c, reg)
+		if err != nil {
+			r.logger.Error(err, "Pod error")
+			return err
+		}
+	}
+
+	podCondition := status.Condition{
+		Type:   regv1.ConditionTypePod,
+		Status: corev1.ConditionFalse,
+	}
+	contCondition := status.Condition{
+		Type:   regv1.ConditionTypeContainer,
+		Status: corev1.ConditionFalse,
+	}
+
+	patchReg.Status.Conditions.SetCondition(podCondition)
+	patchReg.Status.Conditions.SetCondition(contCondition)
+
+	c.Delete(context.TODO(), r.pod)
+
+	return nil
+}
+
 func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
 	podCondition := status.Condition{
 		Type:   regv1.ConditionTypePod,

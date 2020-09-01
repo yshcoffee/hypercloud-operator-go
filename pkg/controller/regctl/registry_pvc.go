@@ -38,16 +38,18 @@ func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, patchReg *reg
 		return nil
 	}
 
-	if err := controllerutil.SetControllerReference(reg, r.pvc, scheme); err != nil {
-		r.logger.Error(err, "SetOwnerReference Failed")
-		condition := status.Condition{
-			Status:  corev1.ConditionFalse,
-			Type:    regv1.ConditionTypePvc,
-			Message: err.Error(),
-		}
+	if reg.Spec.PersistentVolumeClaim.Create.DeleteWithPvc {
+		if err := controllerutil.SetControllerReference(reg, r.pvc, scheme); err != nil {
+			r.logger.Error(err, "SetOwnerReference Failed")
+			condition := status.Condition{
+				Status:  corev1.ConditionFalse,
+				Type:    regv1.ConditionTypePvc,
+				Message: err.Error(),
+			}
 
-		patchReg.Status.Conditions.SetCondition(condition)
-		return nil
+			patchReg.Status.Conditions.SetCondition(condition)
+			return nil
+		}
 	}
 
 	r.logger.Info("Create registry pvc")
