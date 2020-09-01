@@ -72,7 +72,7 @@ func regBodyCheckForIngress(reg *regv1.Registry) bool {
 	if (regService.Ingress.DomainName == "") {
 		return false
 	}
-	if (regService.ClusterIP == "") {
+	if (reg.Status.ClusterIP == "") {
 		return false
 	}
 	return true

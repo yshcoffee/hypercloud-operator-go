@@ -31,11 +31,11 @@ func DCJSecret(reg *regv1.Registry) *corev1.Secret {
 	data := map[string][]byte{}
 	if serviceType == regv1.RegServiceTypeLoadBalancer {
 		port = reg.Spec.RegistryService.LoadBalancer.Port
-		domainList = append(domainList, reg.Spec.RegistryService.LoadBalancer.IP + ":" + strconv.Itoa(port))
+		domainList = append(domainList, reg.Status.LoadBalancerIP + ":" + strconv.Itoa(port))
 	} else {
 		domainList = append(domainList, reg.Name + "." + reg.Spec.RegistryService.Ingress.DomainName + ":" + strconv.Itoa(port))
 	}
-	domainList = append(domainList, reg.Spec.RegistryService.ClusterIP + ":" + strconv.Itoa(port))
+	domainList = append(domainList, reg.Status.ClusterIP + ":" + strconv.Itoa(port))
 
 	config := DockerConfig{
 		Auths: map[string]AuthValue{},
@@ -62,12 +62,12 @@ func DCJSecret(reg *regv1.Registry) *corev1.Secret {
 
 func regBodyCheckForDCJSecret(reg *regv1.Registry) bool {
 	regService := reg.Spec.RegistryService
-	if (regService.ClusterIP == "") {
+	if (reg.Status.ClusterIP == "") {
 		return false
 	}
 	if (regService.ServiceType == regv1.RegServiceTypeIngress && regService.Ingress.DomainName == "") {
 		return false
-	} else if (regService.ServiceType == regv1.RegServiceTypeLoadBalancer && regService.LoadBalancer.IP == "") {
+	} else if (regService.ServiceType == regv1.RegServiceTypeLoadBalancer && reg.Status.LoadBalancerIP == "") {
 		return false
 	}
 	return true

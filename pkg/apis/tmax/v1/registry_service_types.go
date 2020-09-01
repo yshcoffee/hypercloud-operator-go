@@ -9,9 +9,6 @@ type Ingress struct {
 
 // use loadBalancer service type
 type LoadBalancer struct {
-	// [TODO] Minimum, Maximum
-	IP string `json:"ip,omitempty"`
-
 	// external port. Generally use 443 port
 	Port int `json:"port",default:"443"`
 }

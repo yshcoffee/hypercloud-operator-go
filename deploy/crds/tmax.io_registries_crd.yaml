@@ -206,8 +206,6 @@ spec:
             service:
               description: Supported service types are ingress and loadBalancer
               properties:
-                clusterIP:
-                  type: string
                 ingress:
                   description: use ingress service type
                   properties:
@@ -220,9 +218,6 @@ spec:
                 loadBalancer:
                   description: use loadBalancer service type
                   properties:
-                    ip:
-                      description: '[TODO] Minimum, Maximum'
-                      type: string
                     port:
                       description: external port. Generally use 443 port
                       type: integer
@@ -246,6 +241,8 @@ spec:
           description: RegistryStatus defines the observed state of Registry
           properties:
             capacity:
+              type: string
+            clusterIP:
               type: string
             conditions:
               description: Conditions is a set of Condition instances.
@@ -288,6 +285,8 @@ spec:
                 type: object
               type: array
             lastAppliedSpec:
+              type: string
+            loadBalancerIP:
               type: string
             message:
               type: string

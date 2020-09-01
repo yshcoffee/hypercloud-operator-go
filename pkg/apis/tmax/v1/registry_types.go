@@ -55,8 +55,6 @@ type RegistryService struct {
 
 	//
 	LoadBalancer LoadBalancer `json:"loadBalancer,omitempty"`
-
-	ClusterIP string `json:"clusterIP,omitempty"`
 }
 
 type RegistryPVC struct {
@@ -83,6 +81,8 @@ type RegistryStatus struct {
 	PhaseChangedAt  metav1.Time       `json:"phaseChangedAt"`
 	Capacity        string            `json:"capacity"`
 	LastAppliedSpec string            `json:"lastAppliedSpec,omitempty"`
+	ClusterIP       string            `json:"clusterIP,omitempty"`
+	LoadBalancerIP  string            `json:"loadBalancerIP,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

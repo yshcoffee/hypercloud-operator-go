@@ -38,17 +38,17 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 	data := map[string][]byte{}
 	data["ID"] = []byte(reg.Spec.LoginId)
 	data["PASSWD"] = []byte(reg.Spec.LoginPassword)
-	data["CLUSTER_IP"] = []byte(reg.Spec.RegistryService.ClusterIP)
+	data["CLUSTER_IP"] = []byte(reg.Status.ClusterIP)
 
 	if serviceType == regv1.RegServiceTypeIngress {
 		registryDomainName := reg.Name +  "." + reg.Spec.RegistryService.Ingress.DomainName
 		data["DOMAIN_NAME"] = []byte(registryDomainName)
 		data["REGISTRY_URL"] = []byte(registryDomainName + ":" + strconv.Itoa(port))
 	} else if serviceType == regv1.RegServiceTypeLoadBalancer {
-		data["LB_IP"] = []byte(reg.Spec.RegistryService.LoadBalancer.IP)
-		data["REGISTRY_URL"] = []byte(reg.Spec.RegistryService.LoadBalancer.IP + ":" + strconv.Itoa(port))
+		data["LB_IP"] = []byte(reg.Status.LoadBalancerIP)
+		data["REGISTRY_URL"] = []byte(reg.Status.LoadBalancerIP + ":" + strconv.Itoa(port))
 	} else {
-		data["REGISTRY_URL"] = []byte(reg.Spec.RegistryService.ClusterIP + ":" + strconv.Itoa(port))
+		data["REGISTRY_URL"] = []byte(reg.Status.ClusterIP + ":" + strconv.Itoa(port))
 	}
 
 	// parentCert, parentPrivateKey == nil ==> Self Signed Certificate
@@ -113,7 +113,7 @@ func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 			Country: []string{"KR"},
 			Organization: []string{"tmax"},
 			StreetAddress: []string{"Seoul"},
-			CommonName: reg.Spec.RegistryService.ClusterIP,
+			CommonName: reg.Status.ClusterIP,
 		},
 		NotBefore: time.Now(),
 		NotAfter: time.Now().Add(time.Hour * 24 * 1000),
@@ -124,9 +124,9 @@ func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 		BasicConstraintsValid: true,
 	}
 
-	template.IPAddresses = []net.IP{net.ParseIP(reg.Spec.RegistryService.ClusterIP)}
+	template.IPAddresses = []net.IP{net.ParseIP(reg.Status.ClusterIP)}
 	if reg.Spec.RegistryService.ServiceType == regv1.RegServiceTypeLoadBalancer  {
-		template.IPAddresses = append(template.IPAddresses, net.ParseIP(reg.Spec.RegistryService.LoadBalancer.IP))
+		template.IPAddresses = append(template.IPAddresses, net.ParseIP(reg.Status.LoadBalancerIP))
 	} else if reg.Spec.RegistryService.ServiceType == regv1.RegServiceTypeIngress {
 		template.DNSNames = []string{reg.Spec.RegistryService.Ingress.DomainName}
 	}
@@ -159,10 +159,10 @@ func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 
 func regBodyCheckForSecrets(reg *regv1.Registry) bool {
 	regService := reg.Spec.RegistryService
-	if (regService.ClusterIP == "") {
+	if (reg.Status.ClusterIP == "") {
 		return false
 	}
-	if (regService.ServiceType == regv1.RegServiceTypeLoadBalancer && regService.LoadBalancer.IP == "" ) {
+	if (regService.ServiceType == regv1.RegServiceTypeLoadBalancer && reg.Status.LoadBalancerIP == "" ) {
 		return false
 	} else if (regService.ServiceType == regv1.RegServiceTypeIngress && regService.Ingress.DomainName == "") {
 		return false

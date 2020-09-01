@@ -106,13 +106,13 @@ func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *
 			// Several Ingress
 			return regv1.MakeRegistryError("NotReady")
 		}
-		reg.Spec.RegistryService.LoadBalancer.IP = lbIP
+		reg.Status.LoadBalancerIP = lbIP
 		r.logger.Info("LoadBalancer info", "LoadBalancer IP", lbIP)
 	} else if r.svc.Spec.Type == corev1.ServiceTypeClusterIP {
 		r.logger.Info("Service Type is ClusterIP(Ingress)")
 		// [TODO]
 	}
-	reg.Spec.RegistryService.ClusterIP = r.svc.Spec.ClusterIP
+	reg.Status.ClusterIP = r.svc.Spec.ClusterIP
 	condition.Status = corev1.ConditionTrue
 	err = nil
 	r.logger.Info("Succeed")
