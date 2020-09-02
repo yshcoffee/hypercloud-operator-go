@@ -22,7 +22,54 @@ type RegistryConfigMap struct {
 	logger *utils.RegistryLogger
 }
 
-func (r *RegistryConfigMap) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
+func (r *RegistryConfigMap) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
+	if err := r.get(c, reg); err != nil {
+		if errors.IsNotFound(err) {
+			if err := r.create(c, reg, patchReg, scheme, false); err != nil {
+				r.logger.Error(err, "create configmap error")
+				return err
+			}
+		} else {
+			r.logger.Error(err, "configmap error")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *RegistryConfigMap) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	if useGet {
+		err := r.get(c, reg)
+		if err != nil {
+			r.logger.Error(err, "PersistentVolumeClaim error")
+			return err
+		}
+	}
+
+	_, exist := r.cm.Data["config.yml"]
+	if !exist {
+		r.logger.Info("NotReady")
+		condition := status.Condition{
+			Status: corev1.ConditionFalse,
+			Type:   regv1.ConditionTypeConfigMap,
+		}
+
+		patchReg.Status.Conditions.SetCondition(condition)
+		return nil
+	}
+
+	r.logger.Info("Ready")
+	condition := status.Condition{
+		Status: corev1.ConditionTrue,
+		Type:   regv1.ConditionTypeConfigMap,
+	}
+
+	patchReg.Status.Conditions.SetCondition(condition)
+	return nil
+}
+
+func (r *RegistryConfigMap) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
 	if r.cm == nil || useGet {
 		err := r.get(c, reg)
 		if err != nil && !errors.IsNotFound(err) {
@@ -92,41 +139,30 @@ func (r *RegistryConfigMap) get(c client.Client, reg *regv1.Registry) error {
 	return nil
 }
 
-func (r *RegistryConfigMap) Patch(c client.Client, reg *regv1.Registry, patchJson []byte) error {
+func (r *RegistryConfigMap) patch(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, diff []utils.Diff) error {
 	return nil
 }
 
-func (r *RegistryConfigMap) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	if useGet {
+func (r *RegistryConfigMap) delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	if r.cm == nil || useGet {
 		err := r.get(c, reg)
 		if err != nil {
-			r.logger.Error(err, "PersistentVolumeClaim error")
+			r.logger.Error(err, "configmap error")
 			return err
 		}
 	}
 
-	_, exist := r.cm.Data["config.yml"]
-	if !exist {
-		r.logger.Info("NotReady")
-		condition := status.Condition{
-			Status: corev1.ConditionFalse,
-			Type:   regv1.ConditionTypeConfigMap,
-		}
-
-		patchReg.Status.Conditions.SetCondition(condition)
-		return nil
-	}
-
-	r.logger.Info("Ready")
 	condition := status.Condition{
-		Status: corev1.ConditionTrue,
 		Type:   regv1.ConditionTypeConfigMap,
+		Status: corev1.ConditionFalse,
 	}
 
 	patchReg.Status.Conditions.SetCondition(condition)
+
+	c.Delete(context.TODO(), r.cm)
 	return nil
 }
 
-func (r *RegistryConfigMap) Update(c client.Client, reg *regv1.Registry, useGet bool) error {
-	return nil
+func (r *RegistryConfigMap) compare(c client.Client, reg *regv1.Registry, useGet bool) ([]utils.Diff, bool) {
+	return nil, false
 }

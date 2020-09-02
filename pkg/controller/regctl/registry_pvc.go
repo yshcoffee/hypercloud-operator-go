@@ -11,6 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,79 +21,39 @@ import (
 type RegistryPVC struct {
 	pvc    *corev1.PersistentVolumeClaim
 	logger *utils.RegistryLogger
+	scheme *runtime.Scheme
 }
 
-func (r *RegistryPVC) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	if r.pvc == nil || useGet {
-		err := r.get(c, reg)
-		if err != nil && !errors.IsNotFound(err) {
+func (r *RegistryPVC) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
+	if err := r.get(c, reg); err != nil {
+		if errors.IsNotFound(err) {
+			if err := r.create(c, reg, patchReg, scheme, false); err != nil {
+				r.logger.Error(err, "create pvc error")
+				return err
+			}
+		} else {
 			r.logger.Error(err, "pvc is error")
 			return err
-		} else if err == nil {
-			return err
 		}
 	}
 
-	if reg.Spec.PersistentVolumeClaim.Exist != nil {
-		r.logger.Info("Use exist registry pvc. Need not to create pvc.")
-		return nil
+	r.scheme = scheme
+
+	r.logger.Info("Check if patch exists.")
+	diff, _ := r.compare(c, reg, false)
+	if len(diff) > 0 {
+		r.logger.Info("patch exists.", "diff", diff[0].Key)
+		r.patch(c, reg, patchReg, diff)
 	}
 
-	if reg.Spec.PersistentVolumeClaim.Create.DeleteWithPvc {
-		if err := controllerutil.SetControllerReference(reg, r.pvc, scheme); err != nil {
-			r.logger.Error(err, "SetOwnerReference Failed")
-			condition := status.Condition{
-				Status:  corev1.ConditionFalse,
-				Type:    regv1.ConditionTypePvc,
-				Message: err.Error(),
-			}
-
-			patchReg.Status.Conditions.SetCondition(condition)
-			return nil
-		}
-	}
-
-	r.logger.Info("Create registry pvc")
-	err := c.Create(context.TODO(), r.pvc)
-	if err != nil {
-		condition := status.Condition{
-			Status:  corev1.ConditionFalse,
-			Type:    regv1.ConditionTypePvc,
-			Message: err.Error(),
-		}
-
-		patchReg.Status.Conditions.SetCondition(condition)
-		r.logger.Error(err, "Creating registry pvc is failed.")
-		return nil
-	}
-
-	return nil
-}
-
-func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry) error {
-	r.pvc = schemes.PersistentVolumeClaim(reg)
-	// r.logger = utils.GetRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
-	r.logger = utils.NewRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
-
-	req := types.NamespacedName{Name: r.pvc.Name, Namespace: r.pvc.Namespace}
-	err := c.Get(context.TODO(), req, r.pvc)
-	if err != nil {
-		r.logger.Error(err, "Get regsitry pvc is failed")
-		return err
-	}
-
-	return nil
-}
-
-func (r *RegistryPVC) Patch(c client.Client, reg *regv1.Registry, patchJson []byte) error {
 	return nil
 }
 
 func (r *RegistryPVC) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	if useGet {
+	if r.pvc == nil || useGet {
 		err := r.get(c, reg)
 		if err != nil {
-			r.logger.Error(err, "PersistentVolumeClaim error")
+			r.logger.Error(err, "pvc error")
 			return err
 		}
 	}
@@ -120,6 +81,135 @@ func (r *RegistryPVC) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 	return nil
 }
 
-func (r *RegistryPVC) Update(c client.Client, reg *regv1.Registry, useGet bool) error {
+func (r *RegistryPVC) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
+	if reg.Spec.PersistentVolumeClaim.Exist != nil {
+		r.logger.Info("Use exist registry pvc. Need not to create pvc.")
+		return nil
+	}
+
+	if reg.Spec.PersistentVolumeClaim.Create.DeleteWithPvc {
+		if err := controllerutil.SetControllerReference(reg, r.pvc, scheme); err != nil {
+			r.logger.Error(err, "SetOwnerReference Failed")
+			condition := status.Condition{
+				Status:  corev1.ConditionFalse,
+				Type:    regv1.ConditionTypePvc,
+				Message: err.Error(),
+			}
+
+			patchReg.Status.Conditions.SetCondition(condition)
+			return err
+		}
+	}
+
+	r.logger.Info("Create registry pvc")
+	err := c.Create(context.TODO(), r.pvc)
+	if err != nil {
+		condition := status.Condition{
+			Status:  corev1.ConditionFalse,
+			Type:    regv1.ConditionTypePvc,
+			Message: err.Error(),
+		}
+
+		patchReg.Status.Conditions.SetCondition(condition)
+		r.logger.Error(err, "Creating registry pvc is failed.")
+		return err
+	}
+
 	return nil
+}
+
+func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry) error {
+	// if len(reg.Status.LastAppliedSpec) == 0 {
+	// 	return regv1.MakeRegistryError(regv1.LastAppliedSpecIsNil)
+	// }
+	// lastRegSpec := regv1.RegistrySpec{}
+
+	// if err := json.Unmarshal([]byte(reg.Status.LastAppliedSpec), &lastRegSpec); err != nil {
+	// 	r.logger.Error(err, "Unmashaling last applied spec error")
+	// 	return err
+	// }
+	// reg.Spec = lastRegSpec
+	r.pvc = schemes.PersistentVolumeClaim(reg)
+	r.logger = utils.NewRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
+
+	req := types.NamespacedName{Name: r.pvc.Name, Namespace: r.pvc.Namespace}
+	err := c.Get(context.TODO(), req, r.pvc)
+	if err != nil {
+		r.logger.Error(err, "Get regsitry pvc is failed")
+		return err
+	}
+
+	return nil
+}
+
+func (r *RegistryPVC) patch(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, diff []utils.Diff) error {
+	target := r.pvc.DeepCopy()
+	originObject := client.MergeFrom(r.pvc)
+
+	r.logger.Info("patch exists2.", "diff", diff[0].Key)
+
+	for _, d := range diff {
+		switch d.Key {
+		case "DeleteWithPvc":
+			if d.Type == utils.Remove {
+				r.logger.Info("Remove OwnerReferences")
+				target.OwnerReferences = []metav1.OwnerReference{}
+			} else {
+				r.logger.Info("Replace or Add OwnerReferences")
+				if err := controllerutil.SetControllerReference(reg, target, r.scheme); err != nil {
+					r.logger.Error(err, "SetOwnerReference Failed")
+					condition := status.Condition{
+						Status:  corev1.ConditionFalse,
+						Type:    regv1.ConditionTypePvc,
+						Message: err.Error(),
+					}
+
+					patchReg.Status.Conditions.SetCondition(condition)
+					return err
+				}
+			}
+		}
+	}
+
+	// Patch
+	if err := c.Patch(context.TODO(), target, originObject); err != nil {
+		r.logger.Error(err, "Unknown error patching status")
+		return err
+	}
+	return nil
+}
+
+func (r *RegistryPVC) delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	if r.pvc == nil || useGet {
+		err := r.get(c, reg)
+		if err != nil {
+			r.logger.Error(err, "pvc error")
+			return err
+		}
+	}
+
+	condition := status.Condition{
+		Type:   regv1.ConditionTypePvc,
+		Status: corev1.ConditionFalse,
+	}
+
+	patchReg.Status.Conditions.SetCondition(condition)
+
+	c.Delete(context.TODO(), r.pvc)
+	return nil
+}
+
+func (r *RegistryPVC) compare(c client.Client, reg *regv1.Registry, useGet bool) ([]utils.Diff, bool) {
+	diff := []utils.Diff{}
+	regPvc := reg.Spec.PersistentVolumeClaim
+
+	if regPvc.Create != nil {
+		if regPvc.Create.DeleteWithPvc {
+			diff = append(diff, utils.Diff{Type: utils.Add, Key: "DeleteWithPvc"})
+		} else {
+			diff = append(diff, utils.Diff{Type: utils.Remove, Key: "DeleteWithPvc"})
+		}
+	}
+
+	return diff, len(diff) > 0
 }

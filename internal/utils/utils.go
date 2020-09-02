@@ -70,3 +70,16 @@ func (r *RegistryLogger) Error(err error, msg string, keysAndValues ...interface
 		log.Error(err, msg)
 	}
 }
+
+type Diff struct {
+	Type DiffType
+	Key  string
+}
+
+type DiffType string
+
+const (
+	Add     DiffType = "Add"
+	Replace DiffType = "Replace"
+	Remove  DiffType = "Remove"
+)

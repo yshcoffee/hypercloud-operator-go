@@ -121,7 +121,6 @@ func InitRegistryStatus(c client.Client, reg *regv1.Registry) {
 	reg.Status.Reason = "Creating"
 	reg.Status.Phase = string(regv1.StatusCreating)
 	reg.Status.PhaseChangedAt = metav1.Now()
-	reg.Status.LastAppliedSpec = ""
 
 	err := c.Status().Update(context.TODO(), reg)
 	if err != nil {

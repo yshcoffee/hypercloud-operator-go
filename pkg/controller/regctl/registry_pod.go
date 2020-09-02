@@ -7,6 +7,7 @@ import (
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
 	"github.com/operator-framework/operator-sdk/pkg/status"
+	"github.com/r3labs/diff"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -20,77 +21,7 @@ type RegistryPod struct {
 	logger *utils.RegistryLogger
 }
 
-func (r *RegistryPod) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	if r.pod == nil || useGet {
-		err := r.get(c, reg)
-		if err != nil && !errors.IsNotFound(err) {
-			r.logger.Error(err, "pod is error")
-			return err
-		} else if err == nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *RegistryPod) get(c client.Client, reg *regv1.Registry) error {
-	r.pod = &corev1.Pod{}
-	r.logger = utils.NewRegistryLogger(*r, reg.Namespace, reg.Name+" registry's pod")
-
-	podList := &corev1.PodList{}
-	label := map[string]string{}
-	label["app"] = "registry"
-	label["apps"] = regv1.K8sPrefix + reg.Name
-
-	labelSelector := labels.SelectorFromSet(labels.Set(label))
-	listOps := &client.ListOptions{
-		Namespace:     reg.Namespace,
-		LabelSelector: labelSelector,
-	}
-	err := c.List(context.TODO(), podList, listOps)
-	if err != nil {
-		r.logger.Error(err, "Failed to list pods.")
-		return err
-	}
-
-	if len(podList.Items) == 0 {
-		return regv1.MakeRegistryError(regv1.PodNotFound)
-	}
-
-	r.pod = &podList.Items[0]
-
-	r.logger = utils.NewRegistryLogger(*r, r.pod.Namespace, r.pod.Name)
-
-	return nil
-}
-
-func (r *RegistryPod) Patch(c client.Client, reg *regv1.Registry, patchJson []byte) error {
-	return nil
-}
-
-func (r *RegistryPod) Delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	if r.pod == nil || useGet {
-		err := r.get(c, reg)
-		if err != nil {
-			r.logger.Error(err, "Pod error")
-			return err
-		}
-	}
-
-	podCondition := status.Condition{
-		Type:   regv1.ConditionTypePod,
-		Status: corev1.ConditionFalse,
-	}
-	contCondition := status.Condition{
-		Type:   regv1.ConditionTypeContainer,
-		Status: corev1.ConditionFalse,
-	}
-
-	patchReg.Status.Conditions.SetCondition(podCondition)
-	patchReg.Status.Conditions.SetCondition(contCondition)
-
-	c.Delete(context.TODO(), r.pod)
+func (r *RegistryPod) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, changelog diff.Changelog, scheme *runtime.Scheme) error {
 
 	return nil
 }
@@ -179,6 +110,81 @@ func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 		patchReg.Status.Conditions.SetCondition(contCondition)
 		return regv1.MakeRegistryError(regv1.PodNotRunning)
 	}
+
+	return nil
+}
+
+func (r *RegistryPod) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
+	if r.pod == nil || useGet {
+		err := r.get(c, reg)
+		if err != nil && !errors.IsNotFound(err) {
+			r.logger.Error(err, "pod is error")
+			return err
+		} else if err == nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *RegistryPod) get(c client.Client, reg *regv1.Registry) error {
+	r.pod = &corev1.Pod{}
+	r.logger = utils.NewRegistryLogger(*r, reg.Namespace, reg.Name+" registry's pod")
+
+	podList := &corev1.PodList{}
+	label := map[string]string{}
+	label["app"] = "registry"
+	label["apps"] = regv1.K8sPrefix + reg.Name
+
+	labelSelector := labels.SelectorFromSet(labels.Set(label))
+	listOps := &client.ListOptions{
+		Namespace:     reg.Namespace,
+		LabelSelector: labelSelector,
+	}
+	err := c.List(context.TODO(), podList, listOps)
+	if err != nil {
+		r.logger.Error(err, "Failed to list pods.")
+		return err
+	}
+
+	if len(podList.Items) == 0 {
+		return regv1.MakeRegistryError(regv1.PodNotFound)
+	}
+
+	r.pod = &podList.Items[0]
+
+	r.logger = utils.NewRegistryLogger(*r, r.pod.Namespace, r.pod.Name)
+
+	return nil
+}
+
+func (r *RegistryPod) patch(c client.Client, reg *regv1.Registry, patchJson []byte) error {
+	return nil
+}
+
+func (r *RegistryPod) delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	if r.pod == nil || useGet {
+		err := r.get(c, reg)
+		if err != nil {
+			r.logger.Error(err, "Pod error")
+			return err
+		}
+	}
+
+	podCondition := status.Condition{
+		Type:   regv1.ConditionTypePod,
+		Status: corev1.ConditionFalse,
+	}
+	contCondition := status.Condition{
+		Type:   regv1.ConditionTypeContainer,
+		Status: corev1.ConditionFalse,
+	}
+
+	patchReg.Status.Conditions.SetCondition(podCondition)
+	patchReg.Status.Conditions.SetCondition(contCondition)
+
+	c.Delete(context.TODO(), r.pod)
 
 	return nil
 }

@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
 	"reflect"
 
-	"github.com/r3labs/diff"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -156,7 +154,6 @@ func (r *ReconcileRegistry) handleAllSubresources(reg *regv1.Registry) error { /
 	var requeueErr error = nil
 	collectSubController := collectSubController(reg.Spec.RegistryService.ServiceType)
 	patchReg := reg.DeepCopy() // Target to Patch object
-	chSpec := compareSpecAndUpdate(reg)
 
 	defer r.patch(reg, patchReg)
 
@@ -166,7 +163,7 @@ func (r *ReconcileRegistry) handleAllSubresources(reg *regv1.Registry) error { /
 		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
 
 		// Check if subresource is handled.
-		if err := sctl.Handle(r.client, reg, patchReg, r.scheme, chSpec, true); err != nil {
+		if err := sctl.Handle(r.client, reg, patchReg, r.scheme); err != nil {
 			subResourceLogger.Error(err, "Got an error in creating subresource ")
 			return err
 		}
@@ -251,25 +248,12 @@ func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
 func collectSubController(serviceType regv1.RegistryServiceType) []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{}, &regctl.RegistryCertSecret{},
-		&regctl.RegistryDCJSecret{}, &regctl.RegistryConfigMap{}, &regctl.RegistryDeployment{}, &regctl.RegistryPod{})
-	if serviceType == "Ingress" {
-		collection = append(collection, &regctl.RegistryIngress{})
-	}
+	// collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{}, &regctl.RegistryCertSecret{},
+	// 	&regctl.RegistryDCJSecret{}, &regctl.RegistryConfigMap{}, &regctl.RegistryDeployment{}, &regctl.RegistryPod{})
+	// if serviceType == "Ingress" {
+	// 	collection = append(collection, &regctl.RegistryIngress{})
+	// }
+
+	collection = append(collection, &regctl.RegistryPVC{})
 	return collection
-}
-
-func compareSpecAndUpdate(reg *regv1.Registry) diff.Changelog {
-	logger := utils.NewRegistryLogger(regv1.RegistrySpec{}, reg.Namespace, reg.Name)
-	oldSpec := regv1.RegistrySpec{}
-	json.Unmarshal([]byte(reg.Status.LastAppliedSpec), &oldSpec)
-	changeLog, err := diff.Diff(oldSpec, reg.Spec)
-	if err != nil {
-		logger.Error(err, "Error in diff")
-		return nil
-	}
-
-	regSpec, _ := json.Marshal(reg.Spec)
-	reg.Status.LastAppliedSpec = string(regSpec)
-	return changeLog
 }

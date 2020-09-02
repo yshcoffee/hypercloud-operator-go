@@ -74,15 +74,14 @@ type RegistryStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 
-	Conditions      status.Conditions `json:"conditions"`
-	Phase           string            `json:"phase"`
-	Message         string            `json:"message"`
-	Reason          string            `json:"reason"`
-	PhaseChangedAt  metav1.Time       `json:"phaseChangedAt"`
-	Capacity        string            `json:"capacity"`
-	LastAppliedSpec string            `json:"lastAppliedSpec,omitempty"`
-	ClusterIP       string            `json:"clusterIP,omitempty"`
-	LoadBalancerIP  string            `json:"loadBalancerIP,omitempty"`
+	Conditions     status.Conditions `json:"conditions"`
+	Phase          string            `json:"phase"`
+	Message        string            `json:"message"`
+	Reason         string            `json:"reason"`
+	PhaseChangedAt metav1.Time       `json:"phaseChangedAt"`
+	Capacity       string            `json:"capacity"`
+	ClusterIP      string            `json:"clusterIP,omitempty"`
+	LoadBalancerIP string            `json:"loadBalancerIP,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
