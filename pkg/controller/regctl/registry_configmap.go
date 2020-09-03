@@ -25,7 +25,7 @@ type RegistryConfigMap struct {
 func (r *RegistryConfigMap) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
 	if err := r.get(c, reg); err != nil {
 		if errors.IsNotFound(err) {
-			if err := r.create(c, reg, patchReg, scheme, false); err != nil {
+			if err := r.create(c, reg, patchReg, scheme); err != nil {
 				r.logger.Error(err, "create configmap error")
 				return err
 			}
@@ -69,17 +69,7 @@ func (r *RegistryConfigMap) Ready(c client.Client, reg *regv1.Registry, patchReg
 	return nil
 }
 
-func (r *RegistryConfigMap) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	if r.cm == nil || useGet {
-		err := r.get(c, reg)
-		if err != nil && !errors.IsNotFound(err) {
-			r.logger.Error(err, "pvc is error")
-			return err
-		} else if err == nil {
-			return err
-		}
-	}
-
+func (r *RegistryConfigMap) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
 	if len(reg.Spec.CustomConfigYml) > 0 {
 		r.logger.Info("Use exist registry configmap. Need not to create configmap. (Configmap: " + reg.Spec.CustomConfigYml + ")")
 		return nil
@@ -143,26 +133,20 @@ func (r *RegistryConfigMap) patch(c client.Client, reg *regv1.Registry, patchReg
 	return nil
 }
 
-func (r *RegistryConfigMap) delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	if r.cm == nil || useGet {
-		err := r.get(c, reg)
-		if err != nil {
-			r.logger.Error(err, "configmap error")
-			return err
-		}
+func (r *RegistryConfigMap) delete(c client.Client, patchReg *regv1.Registry) error {
+	if err := c.Delete(context.TODO(), r.cm); err != nil {
+		r.logger.Error(err, "Unknown error delete configmap")
+		return err
 	}
-
 	condition := status.Condition{
 		Type:   regv1.ConditionTypeConfigMap,
 		Status: corev1.ConditionFalse,
 	}
 
 	patchReg.Status.Conditions.SetCondition(condition)
-
-	c.Delete(context.TODO(), r.cm)
 	return nil
 }
 
-func (r *RegistryConfigMap) compare(c client.Client, reg *regv1.Registry, useGet bool) ([]utils.Diff, bool) {
-	return nil, false
+func (r *RegistryConfigMap) compare(reg *regv1.Registry) []utils.Diff {
+	return nil
 }

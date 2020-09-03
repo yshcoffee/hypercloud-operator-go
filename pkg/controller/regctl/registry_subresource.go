@@ -12,9 +12,9 @@ type RegistrySubresource interface {
 	Handle(client.Client, *regv1.Registry, *regv1.Registry, *runtime.Scheme) error
 	Ready(client.Client, *regv1.Registry, *regv1.Registry, bool) error
 
-	create(client.Client, *regv1.Registry, *regv1.Registry, *runtime.Scheme, bool) error
+	create(client.Client, *regv1.Registry, *regv1.Registry, *runtime.Scheme) error
 	get(client.Client, *regv1.Registry) error
 	patch(client.Client, *regv1.Registry, *regv1.Registry, []utils.Diff) error
-	delete(client.Client, *regv1.Registry, *regv1.Registry, bool) error
-	compare(client.Client, *regv1.Registry, bool) ([]utils.Diff, bool)
+	delete(client.Client, *regv1.Registry) error
+	compare(*regv1.Registry) []utils.Diff
 }

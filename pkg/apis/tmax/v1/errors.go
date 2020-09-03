@@ -5,6 +5,7 @@ const (
 	Running              = "Running"
 	Creating             = "Creating"
 	PodNotFound          = "PodNotFound"
+	ContainerIsNil       = "ContainerIsNil"
 	ContainerStatusIsNil = "ContainerStatusIsNil"
 	PodNotRunning        = "PodNotRunning"
 )
@@ -16,7 +17,7 @@ type RegistryErrors struct {
 
 func MakeRegistryError(e string) error {
 	RegistryError := RegistryErrors{}
-	if e == NotReady || e == Running || e == Creating || e == PodNotFound || e == ContainerStatusIsNil || e == PodNotRunning {
+	if e == NotReady || e == Running || e == Creating || e == PodNotFound || e == ContainerIsNil || e == ContainerStatusIsNil || e == PodNotRunning {
 		RegistryError.errorType = &e
 	} else {
 		RegistryError.errorMessage = &e

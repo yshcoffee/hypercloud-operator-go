@@ -27,7 +27,7 @@ type RegistryPVC struct {
 func (r *RegistryPVC) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
 	if err := r.get(c, reg); err != nil {
 		if errors.IsNotFound(err) {
-			if err := r.create(c, reg, patchReg, scheme, false); err != nil {
+			if err := r.create(c, reg, patchReg, scheme); err != nil {
 				r.logger.Error(err, "create pvc error")
 				return err
 			}
@@ -40,7 +40,7 @@ func (r *RegistryPVC) Handle(c client.Client, reg *regv1.Registry, patchReg *reg
 	r.scheme = scheme
 
 	r.logger.Info("Check if patch exists.")
-	diff, _ := r.compare(c, reg, false)
+	diff := r.compare(reg)
 	if len(diff) > 0 {
 		r.logger.Info("patch exists.")
 		r.patch(c, reg, patchReg, diff)
@@ -81,7 +81,7 @@ func (r *RegistryPVC) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 	return nil
 }
 
-func (r *RegistryPVC) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
+func (r *RegistryPVC) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
 	if reg.Spec.PersistentVolumeClaim.Exist != nil {
 		r.logger.Info("Use exist registry pvc. Need not to create pvc.")
 		return nil
@@ -167,13 +167,10 @@ func (r *RegistryPVC) patch(c client.Client, reg *regv1.Registry, patchReg *regv
 	return nil
 }
 
-func (r *RegistryPVC) delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	if r.pvc == nil || useGet {
-		err := r.get(c, reg)
-		if err != nil {
-			r.logger.Error(err, "pvc error")
-			return err
-		}
+func (r *RegistryPVC) delete(c client.Client, patchReg *regv1.Registry) error {
+	if err := c.Delete(context.TODO(), r.pvc); err != nil {
+		r.logger.Error(err, "Unknown error delete pvc")
+		return err
 	}
 
 	condition := status.Condition{
@@ -182,12 +179,10 @@ func (r *RegistryPVC) delete(c client.Client, reg *regv1.Registry, patchReg *reg
 	}
 
 	patchReg.Status.Conditions.SetCondition(condition)
-
-	c.Delete(context.TODO(), r.pvc)
 	return nil
 }
 
-func (r *RegistryPVC) compare(c client.Client, reg *regv1.Registry, useGet bool) ([]utils.Diff, bool) {
+func (r *RegistryPVC) compare(reg *regv1.Registry) []utils.Diff {
 	diff := []utils.Diff{}
 	regPvc := reg.Spec.PersistentVolumeClaim
 
@@ -199,5 +194,5 @@ func (r *RegistryPVC) compare(c client.Client, reg *regv1.Registry, useGet bool)
 		}
 	}
 
-	return diff, len(diff) > 0
+	return diff
 }

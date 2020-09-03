@@ -26,7 +26,7 @@ type RegistryDeployment struct {
 func (r *RegistryDeployment) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
 	if err := r.get(c, reg); err != nil {
 		if errors.IsNotFound(err) {
-			if err := r.create(c, reg, patchReg, scheme, false); err != nil {
+			if err := r.create(c, reg, patchReg, scheme); err != nil {
 				r.logger.Error(err, "create Deployment error")
 				return err
 			}
@@ -37,7 +37,7 @@ func (r *RegistryDeployment) Handle(c client.Client, reg *regv1.Registry, patchR
 	}
 
 	r.logger.Info("Check if patch exists.")
-	diff, _ := r.compare(c, reg, false)
+	diff := r.compare(reg)
 	if len(diff) > 0 {
 		r.patch(c, reg, patchReg, diff)
 	}
@@ -75,17 +75,7 @@ func (r *RegistryDeployment) Ready(c client.Client, reg *regv1.Registry, patchRe
 	return nil
 }
 
-func (r *RegistryDeployment) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	if r.deploy == nil || useGet {
-		err := r.get(c, reg)
-		if err != nil && !errors.IsNotFound(err) {
-			r.logger.Error(err, "Deployment error")
-			return err
-		} else if err == nil {
-			return err
-		}
-	}
-
+func (r *RegistryDeployment) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
 	if err := controllerutil.SetControllerReference(reg, r.deploy, scheme); err != nil {
 		r.logger.Error(err, "SetOwnerReference Failed")
 		condition := status.Condition{
@@ -149,13 +139,10 @@ func (r *RegistryDeployment) patch(c client.Client, reg *regv1.Registry, patchRe
 	return nil
 }
 
-func (r *RegistryDeployment) delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	if r.deploy == nil || useGet {
-		err := r.get(c, reg)
-		if err != nil {
-			r.logger.Error(err, "deploy error")
-			return err
-		}
+func (r *RegistryDeployment) delete(c client.Client, patchReg *regv1.Registry) error {
+	if err := c.Delete(context.TODO(), r.deploy); err != nil {
+		r.logger.Error(err, "Unknown error delete deployment")
+		return err
 	}
 
 	condition := status.Condition{
@@ -165,12 +152,42 @@ func (r *RegistryDeployment) delete(c client.Client, reg *regv1.Registry, patchR
 
 	patchReg.Status.Conditions.SetCondition(condition)
 
-	c.Delete(context.TODO(), r.deploy)
 	return nil
 }
 
-func (r *RegistryDeployment) compare(c client.Client, reg *regv1.Registry, useGet bool) ([]utils.Diff, bool) {
+func (r *RegistryDeployment) compare(reg *regv1.Registry) []utils.Diff {
 	diff := []utils.Diff{}
+	var deployContainer *corev1.Container = nil
+	podSpec := r.deploy.Spec.Template.Spec
+	volumeMap := map[string]corev1.Volume{}
 
-	return diff, len(diff) > 0
+	// Get registry container
+	for _, cont := range podSpec.Containers {
+		if cont.Name == "registry" {
+			deployContainer = &cont
+		}
+	}
+
+	if deployContainer == nil {
+		r.logger.Error(regv1.MakeRegistryError(regv1.ContainerIsNil), "registry container is nil")
+		return nil
+	}
+
+	// Get volumes
+	for _, vol := range podSpec.Volumes {
+		volumeMap[vol.Name] = vol
+	}
+
+	if reg.Spec.Image != deployContainer.Image {
+		diff = append(diff, utils.Diff{Type: utils.Replace, Key: "Image"})
+	}
+
+	if reg.Spec.PersistentVolumeClaim.Create != nil {
+		vol, _ := volumeMap["registry"]
+		if vol.VolumeSource.PersistentVolumeClaim.ClaimName != (regv1.K8sPrefix + reg.Name) {
+			diff = append(diff, utils.Diff{Type: utils.Replace, Key: "PvcName"})
+		}
+	}
+
+	return diff
 }
