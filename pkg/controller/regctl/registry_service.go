@@ -6,8 +6,6 @@ import (
 	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,57 +21,23 @@ type RegistryService struct {
 	logger *utils.RegistryLogger
 }
 
-func (r *RegistryService) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	condition := &status.Condition {
-		Status: corev1.ConditionFalse,
-		Type: ServiceTypeName,
-	}
-
-	if useGet {
-		err := r.get(c, reg)
-		if err != nil && !errors.IsNotFound(err) {
-			r.logger.Error(err, "Getting Service failed")
-			utils.SetError(err, patchReg, condition)
-			return err
-		} else if err == nil {
-			r.logger.Info("Service already exist")
-			return err
+func (r *RegistryService) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
+	err := r.get(c, reg)
+	if err != nil {
+		// resource is not exist : have to create
+		if  createError := r.create(c, reg, patchReg, scheme); createError != nil {
+			r.logger.Error(createError, "Create failed in Handle")
+			return createError
 		}
 	}
 
-	if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
-		r.logger.Error(err, "Set owner reference failed")
-		utils.SetError(err, patchReg, condition)
-		return err
+	if isValid := r.compare(reg); isValid == nil {
+		if deleteError := r.delete(c, reg); deleteError != nil {
+			r.logger.Error(deleteError, "Delete failed in Handle")
+			return deleteError
+		}
 	}
 
-	if err := c.Create(context.TODO(), r.svc); err != nil {
-		r.logger.Error(err, "Create failed")
-		utils.SetError(err, patchReg, condition)
-		return err
-	}
-
-	r.logger.Info("Succeed")
-	return nil
-}
-
-func (r *RegistryService) get(c client.Client, reg *regv1.Registry) error {
-	if r.svc == nil {
-		r.svc = schemes.Service(reg)
-		r.logger = utils.NewRegistryLogger(*r, r.svc.Namespace, r.svc.Name)
-	}
-
-	req := types.NamespacedName{Name: r.svc.Name, Namespace: r.svc.Namespace}
-	if err := c.Get(context.TODO(), req, r.svc); err != nil {
-		r.logger.Error(err, "Get Failed")
-		return err
-	}
-	r.logger.Info("Succeed")
-	return nil
-}
-
-func (r *RegistryService) Patch(c client.Client, reg *regv1.Registry, json []byte) error {
-	// [TODO]
 	return nil
 }
 
@@ -118,4 +82,85 @@ func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *
 	r.logger.Info("Succeed")
 	return nil
 }
+
+func (r *RegistryService) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
+	condition := &status.Condition {
+		Status: corev1.ConditionFalse,
+		Type: ServiceTypeName,
+	}
+
+	if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
+		r.logger.Error(err, "Set owner reference failed")
+		utils.SetError(err, patchReg, condition)
+		return err
+	}
+
+	if err := c.Create(context.TODO(), r.svc); err != nil {
+		r.logger.Error(err, "Create failed")
+		utils.SetError(err, patchReg, condition)
+		return err
+	}
+
+	r.logger.Info("Succeed")
+	return nil
+}
+
+func (r *RegistryService) get(c client.Client, reg *regv1.Registry) error {
+	if r.svc == nil {
+		r.svc = schemes.Service(reg)
+		r.logger = utils.NewRegistryLogger(*r, r.svc.Namespace, r.svc.Name)
+	}
+
+	req := types.NamespacedName{Name: r.svc.Name, Namespace: r.svc.Namespace}
+	if err := c.Get(context.TODO(), req, r.svc); err != nil {
+		r.logger.Error(err, "Get Failed")
+		return err
+	}
+	r.logger.Info("Succeed")
+	return nil
+}
+
+func (r *RegistryService) patch(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, diff []utils.Diff) error {
+	// [TODO]
+	return nil
+}
+
+func (r *RegistryService) delete(c client.Client, patchReg *regv1.Registry) error {
+	condition := &status.Condition {
+		Status: corev1.ConditionFalse,
+		Type: ServiceTypeName,
+	}
+
+	if err := c.Delete(context.TODO(), r.svc); err != nil {
+		r.logger.Error(err, "Delete failed")
+		utils.SetError(err, patchReg, condition)
+		return err
+	}
+
+	return nil
+}
+
+func (r *RegistryService) compare(reg *regv1.Registry) []utils.Diff {
+	regServiceSpec := reg.Spec.RegistryService
+	if string(regServiceSpec.ServiceType) != string(r.svc.Spec.Type) {
+		return nil
+	}
+
+	isPortValid := false
+	for _, port := range r.svc.Spec.Ports {
+		if (regServiceSpec.ServiceType == regv1.RegServiceTypeLoadBalancer &&
+			regServiceSpec.LoadBalancer.Port == int(port.Port)) ||
+			(regServiceSpec.ServiceType == regv1.RegServiceTypeIngress && int(port.Port) == 443) {
+			isPortValid = true
+		}
+	}
+
+	if !isPortValid {
+		return nil
+	}
+
+	return []utils.Diff{}
+}
+
+
 

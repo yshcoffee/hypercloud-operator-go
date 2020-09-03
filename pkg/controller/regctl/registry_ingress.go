@@ -8,7 +8,6 @@ import (
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,61 +21,21 @@ type RegistryIngress struct {
 	logger *utils.RegistryLogger
 }
 
-func (r *RegistryIngress) Create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme, useGet bool) error {
-	condition := status.Condition {
-		Status: corev1.ConditionFalse,
-		Type: IngressTypeName,
-	}
-
-	if useGet {
-		err := r.get(c, reg)
-		if err != nil && !errors.IsNotFound(err) {
-			r.logger.Error(err, "Getting Ingress failed")
-			utils.SetError(err, patchReg, &condition)
-			return err
-		} else if err == nil {
-			r.logger.Info("Ingress already exist")
-			return err
+func (r *RegistryIngress) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
+	err := r.get(c, reg)
+	if err != nil {
+		if  createError := r.create(c, reg, patchReg, scheme); createError != nil {
+			r.logger.Error(createError, "Create failed in Handle")
+			return createError
 		}
 	}
 
-	if err := controllerutil.SetControllerReference(reg, r.ingress, scheme); err != nil {
-		r.logger.Error(err, "Controller reference failed")
-		utils.SetError(err, patchReg, &condition)
-		return err
+	if  isValid := r.compare(reg); isValid == nil {
+		if deleteError := r.delete(c, patchReg); deleteError != nil {
+			r.logger.Error(deleteError, "Delete failed in Handle")
+			return deleteError
+		}
 	}
-
-	if err := c.Create(context.TODO(), r.ingress); err != nil {
-		r.logger.Error(err, "Create failed")
-		utils.SetError(err, patchReg, &condition)
-		return err
-	}
-
-	r.logger.Info("Succeed")
-	return nil
-}
-
-
-func (r *RegistryIngress) get(c client.Client, reg *regv1.Registry) error {
-	r.ingress = schemes.Ingress(reg)
-	if r.ingress == nil {
-		return regv1.MakeRegistryError("Registry has no fields Ingress required")
-	}
-	r.logger = utils.NewRegistryLogger(*r, r.ingress.Namespace, r.ingress.Name)
-
-
-	req := types.NamespacedName{Name: r.ingress.Name, Namespace: r.ingress.Namespace}
-	if err := c.Get(context.TODO(), req, r.ingress); err != nil {
-		r.logger.Error(err, "Get failed")
-		return err
-	}
-
-	r.logger.Info("Succeed")
-	return nil
-}
-
-func (r *RegistryIngress) Patch(c client.Client, reg *regv1.Registry, json []byte) error {
-	// [TODO}
 	return nil
 }
 
@@ -126,4 +85,86 @@ func (r *RegistryIngress) Ready(c client.Client, reg *regv1.Registry, patchReg *
 	return nil
 }
 
+func (r *RegistryIngress) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
+	condition := status.Condition {
+		Status: corev1.ConditionFalse,
+		Type: IngressTypeName,
+	}
 
+	if err := controllerutil.SetControllerReference(reg, r.ingress, scheme); err != nil {
+		r.logger.Error(err, "Controller reference failed")
+		utils.SetError(err, patchReg, &condition)
+		return err
+	}
+
+	if err := c.Create(context.TODO(), r.ingress); err != nil {
+		r.logger.Error(err, "Create failed")
+		utils.SetError(err, patchReg, &condition)
+		return err
+	}
+
+	r.logger.Info("Succeed")
+	return nil
+}
+
+
+func (r *RegistryIngress) get(c client.Client, reg *regv1.Registry) error {
+	r.ingress = schemes.Ingress(reg)
+	if r.ingress == nil {
+		return regv1.MakeRegistryError("Registry has no fields Ingress required")
+	}
+	r.logger = utils.NewRegistryLogger(*r, r.ingress.Namespace, r.ingress.Name)
+
+
+	req := types.NamespacedName{Name: r.ingress.Name, Namespace: r.ingress.Namespace}
+	if err := c.Get(context.TODO(), req, r.ingress); err != nil {
+		r.logger.Error(err, "Get failed")
+		return err
+	}
+
+	r.logger.Info("Succeed")
+	return nil
+}
+
+
+func (r *RegistryIngress) patch(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, diff []utils.Diff) error {
+	return nil
+}
+
+func (r *RegistryIngress) delete(c client.Client, patchReg *regv1.Registry) error {
+	condition := &status.Condition {
+		Status: corev1.ConditionFalse,
+		Type: IngressTypeName,
+	}
+
+	if err := c.Delete(context.TODO(), r.ingress); err != nil {
+		r.logger.Error(err, "Delete failed")
+		utils.SetError(err, patchReg, condition)
+		return err
+	}
+
+	return nil
+}
+
+func (r *RegistryIngress) compare(reg *regv1.Registry) []utils.Diff {
+	if reg.Spec.RegistryService.ServiceType != regv1.RegServiceTypeIngress {
+		return nil
+	}
+	registryDomain := reg.Name + "." + reg.Spec.RegistryService.Ingress.DomainName
+
+	for _, ingressTLS := range r.ingress.Spec.TLS {
+		for _, host := range ingressTLS.Hosts {
+			if host != registryDomain {
+				return nil
+			}
+		}
+	}
+
+	for _, ingressRule := range r.ingress.Spec.Rules {
+		if ingressRule.Host != registryDomain {
+			return nil
+		}
+	}
+
+	return []utils.Diff{}
+}
