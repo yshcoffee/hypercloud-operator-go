@@ -293,6 +293,8 @@ spec:
             phaseChangedAt:
               format: date-time
               type: string
+            podRecreateRequired:
+              type: boolean
             reason:
               type: string
           required:

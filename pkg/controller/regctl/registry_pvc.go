@@ -42,7 +42,7 @@ func (r *RegistryPVC) Handle(c client.Client, reg *regv1.Registry, patchReg *reg
 	r.logger.Info("Check if patch exists.")
 	diff, _ := r.compare(c, reg, false)
 	if len(diff) > 0 {
-		r.logger.Info("patch exists.", "diff", diff[0].Key)
+		r.logger.Info("patch exists.")
 		r.patch(c, reg, patchReg, diff)
 	}
 
@@ -119,16 +119,6 @@ func (r *RegistryPVC) create(c client.Client, reg *regv1.Registry, patchReg *reg
 }
 
 func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry) error {
-	// if len(reg.Status.LastAppliedSpec) == 0 {
-	// 	return regv1.MakeRegistryError(regv1.LastAppliedSpecIsNil)
-	// }
-	// lastRegSpec := regv1.RegistrySpec{}
-
-	// if err := json.Unmarshal([]byte(reg.Status.LastAppliedSpec), &lastRegSpec); err != nil {
-	// 	r.logger.Error(err, "Unmashaling last applied spec error")
-	// 	return err
-	// }
-	// reg.Spec = lastRegSpec
 	r.pvc = schemes.PersistentVolumeClaim(reg)
 	r.logger = utils.NewRegistryLogger(*r, r.pvc.Namespace, r.pvc.Name)
 
@@ -145,8 +135,6 @@ func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry) error {
 func (r *RegistryPVC) patch(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, diff []utils.Diff) error {
 	target := r.pvc.DeepCopy()
 	originObject := client.MergeFrom(r.pvc)
-
-	r.logger.Info("patch exists2.", "diff", diff[0].Key)
 
 	for _, d := range diff {
 		switch d.Key {

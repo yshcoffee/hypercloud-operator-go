@@ -13,18 +13,19 @@ import (
 )
 
 // Use for GetRegistryLogger
-func getFuncName() string {
+func funcName() string {
 	pc := make([]uintptr, 15)
 	n := runtime.Callers(4, pc) //Skip: 3 (Callers, getFuncName, GetRegistryLogger, get)
 	frames := runtime.CallersFrames(pc[:n])
 	frame, _ := frames.Next()
+
 	return frame.Function
 }
 
 // [TODO] API is not worked well
 func GetRegistryLogger(subresource interface{}, resNamespace, resName string) logr.Logger {
 	typeName := reflect.TypeOf(subresource).Name()
-	funcName := getFuncName()
+	funcName := funcName()
 	path := strings.Split(funcName, ".")
 	funcName = path[len(path)-1]
 
@@ -32,7 +33,6 @@ func GetRegistryLogger(subresource interface{}, resNamespace, resName string) lo
 }
 
 func SetError(error error, patchReg *regv1.Registry, condition *status.Condition) {
-
 	if error != nil {
 		condition.Message = error.Error()
 	}

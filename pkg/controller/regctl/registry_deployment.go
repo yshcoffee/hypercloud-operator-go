@@ -8,7 +8,6 @@ import (
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
 	"github.com/operator-framework/operator-sdk/pkg/status"
-	"github.com/r3labs/diff"
 	appsv1 "k8s.io/api/apps/v1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +23,24 @@ type RegistryDeployment struct {
 	logger *utils.RegistryLogger
 }
 
-func (r *RegistryDeployment) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, changelog diff.Changelog, scheme *runtime.Scheme) error {
+func (r *RegistryDeployment) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
+	if err := r.get(c, reg); err != nil {
+		if errors.IsNotFound(err) {
+			if err := r.create(c, reg, patchReg, scheme, false); err != nil {
+				r.logger.Error(err, "create Deployment error")
+				return err
+			}
+		} else {
+			r.logger.Error(err, "Deployment error")
+			return err
+		}
+	}
+
+	r.logger.Info("Check if patch exists.")
+	diff, _ := r.compare(c, reg, false)
+	if len(diff) > 0 {
+		r.patch(c, reg, patchReg, diff)
+	}
 
 	return nil
 }
@@ -114,6 +130,47 @@ func (r *RegistryDeployment) get(c client.Client, reg *regv1.Registry) error {
 	return nil
 }
 
-func (r *RegistryDeployment) patch(c client.Client, reg *regv1.Registry, patchJson []byte) error {
+func (r *RegistryDeployment) patch(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, diff []utils.Diff) error {
+	target := r.deploy.DeepCopy()
+	originObject := client.MergeFrom(r.deploy)
+
+	for _, d := range diff {
+		switch d.Key {
+		case "DeleteWithPvc":
+
+		}
+	}
+
+	// Patch
+	if err := c.Patch(context.TODO(), target, originObject); err != nil {
+		r.logger.Error(err, "Unknown error patching status")
+		return err
+	}
 	return nil
+}
+
+func (r *RegistryDeployment) delete(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	if r.deploy == nil || useGet {
+		err := r.get(c, reg)
+		if err != nil {
+			r.logger.Error(err, "deploy error")
+			return err
+		}
+	}
+
+	condition := status.Condition{
+		Type:   regv1.ConditionTypeDeployment,
+		Status: corev1.ConditionFalse,
+	}
+
+	patchReg.Status.Conditions.SetCondition(condition)
+
+	c.Delete(context.TODO(), r.deploy)
+	return nil
+}
+
+func (r *RegistryDeployment) compare(c client.Client, reg *regv1.Registry, useGet bool) ([]utils.Diff, bool) {
+	diff := []utils.Diff{}
+
+	return diff, len(diff) > 0
 }
