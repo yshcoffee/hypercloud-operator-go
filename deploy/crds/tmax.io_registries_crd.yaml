@@ -303,6 +303,7 @@ spec:
           - message
           - phase
           - phaseChangedAt
+          - podRecreateRequired
           - reason
           type: object
       required:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
 
 	"github.com/operator-framework/operator-sdk/pkg/status"
@@ -27,12 +28,13 @@ type RegistryCertSecret struct {
 
 func (r *RegistryCertSecret) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
 	err := r.get(c, reg)
-	if err != nil {
+	if err != nil && errors.IsNotFound(err) {
 		// resource is not exist : have to create
 		if  createError := r.create(c, reg, patchReg, scheme); createError != nil {
 			r.logger.Error(createError, "Create failed in Handle")
 			return createError
 		}
+		patchReg.Status.PodRecreateRequired = true
 	}
 
 	if  isValid := r.compare(reg); isValid == nil {
