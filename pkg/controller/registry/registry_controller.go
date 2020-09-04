@@ -1,12 +1,14 @@
 package registry
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
 	"reflect"
 
-	"github.com/operator-framework/operator-sdk/pkg/status"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -69,6 +71,30 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &regv1.Registry{},
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &regv1.Registry{},
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &regv1.Registry{},
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -112,7 +138,7 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, nil
 	}
 
-	if err = r.createAllSubresources(reg); err != nil {
+	if err = r.handleAllSubresources(reg); err != nil {
 		reqLogger.Error(err, "Subresource creation failed")
 		return reconcile.Result{}, err
 	}
@@ -121,41 +147,112 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileRegistry) createAllSubresources(reg *regv1.Registry) error { // if want to requeue, return true
+func (r *ReconcileRegistry) handleAllSubresources(reg *regv1.Registry) error { // if want to requeue, return true
 	subResourceLogger := log.WithValues("SubResource.Namespace", reg.Namespace, "SubResource.Name", reg.Name)
 	subResourceLogger.Info("Creating all Subresources")
-	for _, subresource := range collectSubresources() {
-		subresourceType := reflect.TypeOf(subresource).String()
+
+	var requeueErr error = nil
+	collectSubController := collectSubController(reg.Spec.RegistryService.ServiceType)
+	patchReg := reg.DeepCopy() // Target to Patch object
+
+	defer r.patch(reg, patchReg)
+
+	// Check if subresources are created.
+	for _, sctl := range collectSubController {
+		subresourceType := reflect.TypeOf(sctl).String()
 		subResourceLogger.Info("Check subresource", "subresourceType", subresourceType)
-		registryCondition := &status.Condition{
-			Status: corev1.ConditionFalse,
-			Type:   status.ConditionType(subresource.GetTypeName()),
-		}
 
-		if err := subresource.Create(r.client, reg, registryCondition, r.scheme, true); err != nil {
-			subResourceLogger.Info("Got Error in creating subresource ")
-			subresource.StatusPatch(r.client, reg, registryCondition, true)
+		// Check if subresource is handled.
+		if err := sctl.Handle(r.client, reg, patchReg, r.scheme); err != nil {
+			subResourceLogger.Error(err, "Got an error in creating subresource ")
 			return err
 		}
 
-		err := subresource.Ready(reg, true)
-		if err != nil && err.Error() == regv1.NotReady {
-			registryCondition.Status = corev1.ConditionFalse
-			subresource.StatusPatch(r.client, reg, registryCondition, false)
+		// Check if subresource is ready.
+		if err := sctl.Ready(r.client, reg, patchReg, false); err != nil {
+			subResourceLogger.Error(err, "Got an error in checking ready")
+			if regv1.IsPodError(err) {
+				requeueErr = err
+			} else {
+				return err
+			}
+		}
+	}
+	if requeueErr != nil {
+		return requeueErr
+	}
+
+	return nil
+}
+
+func (r *ReconcileRegistry) patch(origin, target *regv1.Registry) error {
+	subResourceLogger := log.WithValues("SubResource.Namespace", origin.Namespace, "SubResource.Name", origin.Name)
+
+	originObject := client.MergeFrom(origin) // Set original obeject
+	statusPatchTarget := target.DeepCopy()
+
+	// Get origin data except status for compare
+	originWithoutStatus := origin.DeepCopy()
+	originWithoutStatus.Status = regv1.RegistryStatus{}
+	originWithoutStatusByte, err := json.Marshal(*originWithoutStatus)
+	if err != nil {
+		subResourceLogger.Error(err, "json marshal error")
+		return err
+	}
+
+	// Get target data except status for compare
+	targetWithoutStatus := target.DeepCopy()
+	targetWithoutStatus.Status = regv1.RegistryStatus{}
+	targetWithoutStatusByte, err := json.Marshal(*targetWithoutStatus)
+	if err != nil {
+		subResourceLogger.Error(err, "json marshal error")
+		return err
+	}
+
+	// Check whether patch is necessary or not
+	if res := bytes.Compare(originWithoutStatusByte, targetWithoutStatusByte); res != 0 {
+		subResourceLogger.Info("Patch registry")
+		if err := r.client.Patch(context.TODO(), target, originObject); err != nil {
+			subResourceLogger.Error(err, "Unknown error patching status")
 			return err
-		} else {
-			registryCondition.Status = corev1.ConditionTrue
-			subresource.StatusPatch(r.client, reg, registryCondition, false)
+		}
+	}
+
+	// Get origin status data for compare
+	originStatus := origin.Status.DeepCopy()
+	originStatusByte, err := json.Marshal(*originStatus)
+	if err != nil {
+		subResourceLogger.Error(err, "json marshal error")
+		return err
+	}
+
+	// Get target status data for compare
+	targetStatusByte, err := json.Marshal(*statusPatchTarget)
+	if err != nil {
+		subResourceLogger.Error(err, "json marshal error")
+		return err
+	}
+
+	// Check whether patch is necessary or not about status
+	if res := bytes.Compare(originStatusByte, targetStatusByte); res != 0 {
+		subResourceLogger.Info("Patch registry status")
+		if err := r.client.Status().Patch(context.TODO(), statusPatchTarget, originObject); err != nil {
+			subResourceLogger.Error(err, "Unknown error patching status")
+			return err
 		}
 	}
 
 	return nil
 }
 
-func collectSubresources() []regctl.RegistrySubresource {
+func collectSubController(serviceType regv1.RegistryServiceType) []regctl.RegistrySubresource {
 	collection := []regctl.RegistrySubresource{}
 	// [TODO] Add Subresources in here
-	// collection = append(collection, &regctl.RegistryService{})
-	collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{})
+	 collection = append(collection, &regctl.RegistryPVC{}, &regctl.RegistryService{}, &regctl.RegistryCertSecret{},
+	 	&regctl.RegistryDCJSecret{}, &regctl.RegistryConfigMap{}, &regctl.RegistryDeployment{}, &regctl.RegistryPod{})
+	 if serviceType == "Ingress" {
+	 	collection = append(collection, &regctl.RegistryIngress{})
+	 }
+
 	return collection
 }

@@ -1,0 +1,33 @@
+apiVersion: tmax.io/v1
+kind: Registry
+metadata:
+  name: tmp-tmax-registry
+  namespace: reg-test 
+spec:
+  image: registry:2.6.2
+  description: test
+  loginId: tmax
+  loginPassword: tmax123
+    #customConfigYml: my-registry-config
+    #replicaSet:
+    #tolerations:
+    #- effect: NoExecute
+    #key: node.kubernetes.io/not-ready
+  #tolerationSeconds: 2147483647
+  service:
+      #ingress:
+      #port: 0
+      #domainName: 172.22.11.15.nip.io
+    serviceType: Ingress 
+    ingress:
+      domainName: 172.22.11.21.nip.io
+  persistentVolumeClaim:
+    mountPath: /var/lib/registry
+      #exist:
+    #pvcName: hpcd-tmax3-registry
+    create:
+      accessModes: [ReadWriteOnce]
+      storageSize: 10Gi
+      storageClassName: csi-cephfs-sc
+      volumeMode: Filesystem
+      deleteWithPvc: true

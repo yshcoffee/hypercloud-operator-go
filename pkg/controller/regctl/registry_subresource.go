@@ -1,22 +1,20 @@
 package regctl
 
 import (
-	"github.com/operator-framework/operator-sdk/pkg/status"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 )
 
 type RegistrySubresource interface {
-	Create(client.Client, *regv1.Registry, *status.Condition, *runtime.Scheme, bool) error
-	//Get(client.Client, *regv1.Registry, *status.Condition) error
-	get(client.Client, *regv1.Registry, *status.Condition) error
-	GetTypeName() string
-	Patch(client.Client, *regv1.Registry, bool) error
-	// [TODO] If not Ready
-	Ready(*regv1.Registry, bool) error
-	StatusPatch(client.Client, *regv1.Registry, *status.Condition, bool) error
-	StatusUpdate(client.Client, *regv1.Registry, *status.Condition, bool) error
-	Update(client.Client, *regv1.Registry, bool) error
+	Handle(client.Client, *regv1.Registry, *regv1.Registry, *runtime.Scheme) error
+	Ready(client.Client, *regv1.Registry, *regv1.Registry, bool) error
+
+	create(client.Client, *regv1.Registry, *regv1.Registry, *runtime.Scheme) error
+	get(client.Client, *regv1.Registry) error
+	patch(client.Client, *regv1.Registry, *regv1.Registry, []utils.Diff) error
+	delete(client.Client, *regv1.Registry) error
+	compare(*regv1.Registry) []utils.Diff
 }

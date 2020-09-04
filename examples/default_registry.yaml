@@ -4,7 +4,7 @@ metadata:
   name: tmp-tmax-registry
   namespace: reg-test 
 spec:
-  image: dlwlsdnjsehs/reigstry-operator:v0.0.1 
+  image: registry:2.6.2
   description: test
   loginId: tmax
   loginPassword: tmax123
@@ -18,7 +18,7 @@ spec:
       #ingress:
       #port: 0
       #domainName: 172.22.11.15.nip.io
-    serviceName: LoadBalancer
+    serviceType: LoadBalancer
     loadBalancer:
       port: 443
   persistentVolumeClaim:

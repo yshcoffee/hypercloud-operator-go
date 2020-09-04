@@ -56,14 +56,13 @@ func UpdateRegistryStatus(c client.Client, reg *regv1.Registry) bool {
 	}
 
 	reqLogger.Info("Get desired status.")
-	for _, t := range falseTypes {
-		if len(falseTypes) > 1 {
-			desiredStatus = regv1.StatusCreating
-		} else if len(falseTypes) == 1 && t == regv1.ConditionTypePod {
-			desiredStatus = regv1.StatusNotReady
-		} else {
-			desiredStatus = regv1.StatusRunning
-		}
+
+	if len(falseTypes) > 1 {
+		desiredStatus = regv1.StatusCreating
+	} else if len(falseTypes) == 1 && falseTypes[0] == regv1.ConditionTypeContainer {
+		desiredStatus = regv1.StatusNotReady
+	} else {
+		desiredStatus = regv1.StatusRunning
 	}
 
 	// Chcck if current status is desired status. If does not same, patch the status.
@@ -131,8 +130,9 @@ func InitRegistryStatus(c client.Client, reg *regv1.Registry) {
 
 func getCheckTypes(reg *regv1.Registry) []status.ConditionType {
 	checkTypes := []status.ConditionType{
-		regv1.ConditionTypeReplicaSet,
+		regv1.ConditionTypeDeployment,
 		regv1.ConditionTypePod,
+		regv1.ConditionTypeContainer,
 		regv1.ConditionTypeService,
 		regv1.ConditionTypeSecretOpaque,
 		regv1.ConditionTypeSecretDockerConfigJson,
@@ -140,9 +140,13 @@ func getCheckTypes(reg *regv1.Registry) []status.ConditionType {
 		regv1.ConditionTypeConfigMap,
 	}
 
-	if reg.Spec.RegistryService.Ingress != nil {
+	if reg.Spec.RegistryService.ServiceType == regv1.RegServiceTypeIngress {
 		checkTypes = append(checkTypes, regv1.ConditionTypeSecretTls, regv1.ConditionTypeIngress)
 	}
 
 	return checkTypes
 }
+
+// func ConditionType(regSubres interface{}) status.ConditionType {
+// 	status.ConditionType(string)
+// }

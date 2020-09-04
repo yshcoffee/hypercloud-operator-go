@@ -26,26 +26,35 @@ type RegistrySpec struct {
 	CustomConfigYml string `json:"customConfigYml,omitempty"`
 
 	DomainName         string             `json:"domainName,omitempty"`
-	RegistryReplicaSet RegistryReplicaSet `json:"registryReplicaSet,omitempty"`
+	RegistryDeployment RegistryDeployment `json:"registryDeployment,omitempty"`
 
 	// Supported service types are ingress and loadBalancer
 	RegistryService       RegistryService `json:"service"`
 	PersistentVolumeClaim RegistryPVC     `json:"persistentVolumeClaim"`
 }
 
-type RegistryReplicaSet struct {
+type RegistryDeployment struct {
 	Labels       map[string]string    `json:"labels"`
 	NodeSelector map[string]string    `json:"nodeSelector"`
 	Selector     metav1.LabelSelector `json:"selector"`
 	Tolerations  []corev1.Toleration  `json:"tolerations"`
 }
 
+type RegistryServiceType string
+
+const (
+	RegServiceTypeLoadBalancer = "LoadBalancer"
+	RegServiceTypeIngress      = "ClusterIP"
+)
+
 type RegistryService struct {
+	// use Ingress or LoadBalancer
+	ServiceType RegistryServiceType `json:"serviceType"`
 	// use ingress service type
-	Ingress *Ingress `json:"ingress,omitempty"`
+	Ingress Ingress `json:"ingress,omitempty"`
 
 	//
-	LoadBalancer *LoadBalancer `json:"loadBalancer,omitempty"`
+	LoadBalancer LoadBalancer `json:"loadBalancer,omitempty"`
 }
 
 type RegistryPVC struct {
@@ -65,12 +74,15 @@ type RegistryStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 
-	Conditions     status.Conditions `json:"conditions"`
-	Phase          string            `json:"phase"`
-	Message        string            `json:"message"`
-	Reason         string            `json:"reason"`
-	PhaseChangedAt metav1.Time       `json:"phaseChangedAt"`
-	Capacity       string            `json:"capacity"`
+	Conditions          status.Conditions `json:"conditions"`
+	Phase               string            `json:"phase"`
+	Message             string            `json:"message"`
+	Reason              string            `json:"reason"`
+	PhaseChangedAt      metav1.Time       `json:"phaseChangedAt"`
+	Capacity            string            `json:"capacity"`
+	ClusterIP           string            `json:"clusterIP,omitempty"`
+	LoadBalancerIP      string            `json:"loadBalancerIP,omitempty"`
+	PodRecreateRequired bool              `json:"podRecreateRequired"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -87,9 +99,7 @@ type Registry struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   RegistrySpec   `json:"spec"`
-	Status RegistryStatus `json:"status"`
-
-	OperatorStartTime string `json:"operatorStartTime,omitempty"`
+	Status RegistryStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

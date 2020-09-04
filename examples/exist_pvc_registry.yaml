@@ -1,0 +1,28 @@
+apiVersion: tmax.io/v1
+kind: Registry
+metadata:
+  name: tmax-registry2
+  namespace: reg-test2
+spec:
+  description: test
+  image: registry:2.6.2
+  loginId: tmax
+  loginPassword: tmax123
+  persistentVolumeClaim:
+    exist:
+      pvcName: hpcd-tmax-registry-test
+#    create:
+#      accessModes:
+#      - ReadWriteOnce
+#      deleteWithPvc: true
+#      storageClassName: csi-cephfs-sc
+#      storageSize: 10Gi
+#      volumeMode: Filesystem
+    mountPath: /var/lib/registry
+  service:
+    #serviceType: LoadBalancer
+    #loadBalancer:
+      #port: 443
+    serviceType: Ingress
+    ingress:
+      domainName: 172.22.11.21.nip.io
