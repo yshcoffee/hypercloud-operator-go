@@ -264,5 +264,3 @@ func (r *RegistryDeployment) compare(reg *regv1.Registry) []utils.Diff {
 
 	return diff
 }
-
-func volumeMap(deploy *appsv1.Deployment)

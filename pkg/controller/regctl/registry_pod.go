@@ -93,7 +93,7 @@ func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 			reason = "NotReady"
 		}
 	} else if contState.State.Terminated != nil {
-		reason = contState.State.Waiting.Reason
+		reason = contState.State.Terminated.Reason
 		r.logger.Info(reason)
 	} else {
 		reason = "Unknown"
