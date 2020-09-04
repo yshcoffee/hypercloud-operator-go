@@ -18,6 +18,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+const (
+	MountPathDiffKey = "MountPath"
+	PvcNameDiffKey   = "PvcName"
+	ImageDiffKey     = "Image"
+)
+
 type RegistryDeployment struct {
 	deploy *appsv1.Deployment
 	logger *utils.RegistryLogger
@@ -124,16 +130,61 @@ func (r *RegistryDeployment) patch(c client.Client, reg *regv1.Registry, patchRe
 	target := r.deploy.DeepCopy()
 	originObject := client.MergeFrom(r.deploy)
 
+	var deployContainer *corev1.Container = nil
+	podSpec := target.Spec.Template.Spec
+
+	// Get registry container
+	for _, cont := range podSpec.Containers {
+		if cont.Name == "registry" {
+			deployContainer = &cont
+		}
+	}
+
+	if deployContainer == nil {
+		r.logger.Error(regv1.MakeRegistryError(regv1.ContainerNotFound), "registry container is nil")
+		return nil
+	}
+
 	for _, d := range diff {
 		switch d.Key {
-		case "DeleteWithPvc":
+		case ImageDiffKey:
+			deployContainer.Image = reg.Spec.Image
 
+		case MountPathDiffKey:
+			var contPvcVm *corev1.VolumeMount = nil
+			for _, vm := range deployContainer.VolumeMounts {
+				if vm.Name == "registry" {
+					contPvcVm = &vm
+					break
+				}
+			}
+
+			if contPvcVm == nil {
+				r.logger.Error(regv1.MakeRegistryError(regv1.PvcVolumeMountNotFound), "registry pvc volume mount is nil")
+				return nil
+			}
+
+			contPvcVm.MountPath = reg.Spec.PersistentVolumeClaim.MountPath
+
+		case PvcNameDiffKey:
+			volumeMap := map[string]corev1.Volume{}
+			// Get volumes
+			for _, vol := range podSpec.Volumes {
+				volumeMap[vol.Name] = vol
+			}
+
+			vol, _ := volumeMap["registry"]
+			if reg.Spec.PersistentVolumeClaim.Create != nil {
+				vol.PersistentVolumeClaim.ClaimName = regv1.K8sPrefix + reg.Name
+			} else {
+				vol.PersistentVolumeClaim.ClaimName = reg.Spec.PersistentVolumeClaim.Exist.PvcName
+			}
 		}
 	}
 
 	// Patch
 	if err := c.Patch(context.TODO(), target, originObject); err != nil {
-		r.logger.Error(err, "Unknown error patching status")
+		r.logger.Error(err, "Unknown error patch")
 		return err
 	}
 	return nil
@@ -169,7 +220,7 @@ func (r *RegistryDeployment) compare(reg *regv1.Registry) []utils.Diff {
 	}
 
 	if deployContainer == nil {
-		r.logger.Error(regv1.MakeRegistryError(regv1.ContainerIsNil), "registry container is nil")
+		r.logger.Error(regv1.MakeRegistryError(regv1.ContainerNotFound), "registry container is nil")
 		return nil
 	}
 
@@ -179,15 +230,39 @@ func (r *RegistryDeployment) compare(reg *regv1.Registry) []utils.Diff {
 	}
 
 	if reg.Spec.Image != deployContainer.Image {
-		diff = append(diff, utils.Diff{Type: utils.Replace, Key: "Image"})
+		diff = append(diff, utils.Diff{Type: utils.Replace, Key: ImageDiffKey})
 	}
 
 	if reg.Spec.PersistentVolumeClaim.Create != nil {
 		vol, _ := volumeMap["registry"]
 		if vol.VolumeSource.PersistentVolumeClaim.ClaimName != (regv1.K8sPrefix + reg.Name) {
-			diff = append(diff, utils.Diff{Type: utils.Replace, Key: "PvcName"})
+			diff = append(diff, utils.Diff{Type: utils.Replace, Key: PvcNameDiffKey})
 		}
+	} else {
+		vol, _ := volumeMap["registry"]
+		if vol.VolumeSource.PersistentVolumeClaim.ClaimName != reg.Spec.PersistentVolumeClaim.Exist.PvcName {
+			diff = append(diff, utils.Diff{Type: utils.Replace, Key: PvcNameDiffKey})
+		}
+	}
+
+	var contPvcVm *corev1.VolumeMount = nil
+	for _, vm := range deployContainer.VolumeMounts {
+		if vm.Name == "registry" {
+			contPvcVm = &vm
+			break
+		}
+	}
+
+	if contPvcVm == nil {
+		r.logger.Error(regv1.MakeRegistryError(regv1.PvcVolumeMountNotFound), "registry pvc volume mount is nil")
+		return nil
+	}
+
+	if reg.Spec.PersistentVolumeClaim.MountPath != contPvcVm.MountPath {
+		diff = append(diff, utils.Diff{Type: utils.Replace, Key: MountPathDiffKey})
 	}
 
 	return diff
 }
+
+func volumeMap(deploy *appsv1.Deployment)
