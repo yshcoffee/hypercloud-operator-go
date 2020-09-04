@@ -36,6 +36,8 @@ func (r *RegistryIngress) Handle(c client.Client, reg *regv1.Registry, patchReg 
 			return deleteError
 		}
 	}
+
+	r.logger.Info("Succeed")
 	return nil
 }
 
@@ -147,7 +149,7 @@ func (r *RegistryIngress) delete(c client.Client, patchReg *regv1.Registry) erro
 }
 
 func (r *RegistryIngress) compare(reg *regv1.Registry) []utils.Diff {
-	if reg.Spec.RegistryService.ServiceType != regv1.RegServiceTypeIngress {
+	if reg.Spec.RegistryService.ServiceType != "Ingress" {
 		return nil
 	}
 	registryDomain := reg.Name + "." + reg.Spec.RegistryService.Ingress.DomainName
@@ -166,5 +168,6 @@ func (r *RegistryIngress) compare(reg *regv1.Registry) []utils.Diff {
 		}
 	}
 
+	r.logger.Info("Succeed")
 	return []utils.Diff{}
 }

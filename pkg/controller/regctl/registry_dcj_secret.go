@@ -40,6 +40,8 @@ func (r *RegistryDCJSecret) Handle(c client.Client, reg *regv1.Registry, patchRe
 			return deleteError
 		}
 	}
+
+	r.logger.Info("Succeed")
 	return nil
 }
 
@@ -158,5 +160,6 @@ func (r *RegistryDCJSecret) compare(reg *regv1.Registry) []utils.Diff {
 		}
 	}
 
+	r.logger.Info("Succeed")
 	return []utils.Diff{}
 }

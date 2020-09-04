@@ -40,7 +40,7 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 	data["PASSWD"] = []byte(reg.Spec.LoginPassword)
 	data["CLUSTER_IP"] = []byte(reg.Status.ClusterIP)
 
-	if serviceType == regv1.RegServiceTypeIngress {
+	if serviceType == "Ingress" {
 		registryDomainName := reg.Name +  "." + reg.Spec.RegistryService.Ingress.DomainName
 		data["DOMAIN_NAME"] = []byte(registryDomainName)
 		data["REGISTRY_URL"] = []byte(registryDomainName + ":" + strconv.Itoa(port))

@@ -4,7 +4,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 )
 
@@ -27,7 +26,6 @@ func Service(reg *regv1.Registry) *corev1.Service {
 	} else {
 		serviceName = regv1.RegServiceTypeIngress
 	}
-	utils.GetRegistryLogger(corev1.Service{}, reg.Namespace, reg.Name).Info("ServiceType", "Type", serviceName)
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
