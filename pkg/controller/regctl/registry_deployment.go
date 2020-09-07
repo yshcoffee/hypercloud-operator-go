@@ -4,6 +4,7 @@ import (
 	"context"
 	"hypercloud-operator-go/internal/schemes"
 	"hypercloud-operator-go/internal/utils"
+	"strings"
 
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
@@ -44,7 +45,10 @@ func (r *RegistryDeployment) Handle(c client.Client, reg *regv1.Registry, patchR
 
 	r.logger.Info("Check if patch exists.")
 	diff := r.compare(reg)
-	if len(diff) > 0 {
+	if diff == nil {
+		r.logger.Error(nil, "Invalid deployment!!!")
+		r.delete(c, patchReg)
+	} else if len(diff) > 0 {
 		r.patch(c, reg, patchReg, diff)
 	}
 
@@ -131,12 +135,17 @@ func (r *RegistryDeployment) patch(c client.Client, reg *regv1.Registry, patchRe
 	originObject := client.MergeFrom(r.deploy)
 
 	var deployContainer *corev1.Container = nil
+	// var contPvcVm *corev1.VolumeMount = nil
+	volumeMap := map[string]corev1.Volume{}
 	podSpec := target.Spec.Template.Spec
 
+	r.logger.Info("Get", "Patch Keys", strings.Join(utils.DiffKeyList(diff), ", "))
+
 	// Get registry container
-	for _, cont := range podSpec.Containers {
+	for i, cont := range podSpec.Containers {
 		if cont.Name == "registry" {
-			deployContainer = &cont
+			deployContainer = &podSpec.Containers[i]
+			break
 		}
 	}
 
@@ -151,23 +160,21 @@ func (r *RegistryDeployment) patch(c client.Client, reg *regv1.Registry, patchRe
 			deployContainer.Image = reg.Spec.Image
 
 		case MountPathDiffKey:
-			var contPvcVm *corev1.VolumeMount = nil
-			for _, vm := range deployContainer.VolumeMounts {
+			found := false
+			for i, vm := range deployContainer.VolumeMounts {
 				if vm.Name == "registry" {
-					contPvcVm = &vm
+					deployContainer.VolumeMounts[i].MountPath = reg.Spec.PersistentVolumeClaim.MountPath
+					found = true
 					break
 				}
 			}
 
-			if contPvcVm == nil {
+			if !found {
 				r.logger.Error(regv1.MakeRegistryError(regv1.PvcVolumeMountNotFound), "registry pvc volume mount is nil")
 				return nil
 			}
 
-			contPvcVm.MountPath = reg.Spec.PersistentVolumeClaim.MountPath
-
 		case PvcNameDiffKey:
-			volumeMap := map[string]corev1.Volume{}
 			// Get volumes
 			for _, vol := range podSpec.Volumes {
 				volumeMap[vol.Name] = vol
@@ -246,9 +253,9 @@ func (r *RegistryDeployment) compare(reg *regv1.Registry) []utils.Diff {
 	}
 
 	var contPvcVm *corev1.VolumeMount = nil
-	for _, vm := range deployContainer.VolumeMounts {
+	for i, vm := range deployContainer.VolumeMounts {
 		if vm.Name == "registry" {
-			contPvcVm = &vm
+			contPvcVm = &deployContainer.VolumeMounts[i]
 			break
 		}
 	}

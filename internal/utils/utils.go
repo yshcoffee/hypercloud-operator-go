@@ -83,3 +83,13 @@ const (
 	Replace DiffType = "Replace"
 	Remove  DiffType = "Remove"
 )
+
+func DiffKeyList(diffList []Diff) []string {
+	keyList := []string{}
+
+	for _, d := range diffList {
+		keyList = append(keyList, d.Key)
+	}
+
+	return keyList
+}
