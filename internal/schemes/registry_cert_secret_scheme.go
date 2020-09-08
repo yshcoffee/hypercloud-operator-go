@@ -173,7 +173,7 @@ func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 	template.IPAddresses = []net.IP{net.ParseIP(reg.Status.ClusterIP)}
 	if reg.Spec.RegistryService.ServiceType == regv1.RegServiceTypeLoadBalancer  {
 		template.IPAddresses = append(template.IPAddresses, net.ParseIP(reg.Status.LoadBalancerIP))
-	} else if reg.Spec.RegistryService.ServiceType == regv1.RegServiceTypeIngress {
+	} else if reg.Spec.RegistryService.ServiceType == "Ingress" {
 		template.DNSNames = []string{reg.Spec.RegistryService.Ingress.DomainName}
 	}
 
