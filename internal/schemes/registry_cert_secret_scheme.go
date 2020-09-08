@@ -1,6 +1,7 @@
 package schemes
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -10,21 +11,27 @@ import (
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"math/big"
 	"net"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
+	RootCASecretName = "registry-ca"
+	RootCASecretNamespace = "hypercloud4-system"
+	RootCACert = "ca.crt"
+	RootCAPriv = "ca.key"
 	CertKeyFile = "localhub.key"
 	CertCrtFile = "localhub.crt"
 	TLSCert = "tls.crt"
 	TLSKey = "tls.key"
 )
 
-func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
+func Secrets(reg *regv1.Registry, c client.Client) (*corev1.Secret, *corev1.Secret) {
 	logger := utils.GetRegistryLogger(corev1.Secret{}, reg.Namespace, reg.Name + "secret")
 	if (!regBodyCheckForSecrets(reg)) {
 		return nil, nil
@@ -51,8 +58,9 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 		data["REGISTRY_URL"] = []byte(reg.Status.ClusterIP + ":" + strconv.Itoa(port))
 	}
 
-	// parentCert, parentPrivateKey == nil ==> Self Signed Certificate
-	certificateBytes, privateKey, err := makeCertificate(reg, nil, nil)
+	parentCert, parentPrivKey := getCertificateFromFile(c)
+
+	certificateBytes, privateKey, err := makeCertificate(reg, parentCert, parentPrivKey)
 	if err != nil {
 		// ERROR
 		logger.Error(err, "Create certificate failed")
@@ -99,9 +107,47 @@ func Secrets(reg *regv1.Registry) (*corev1.Secret, *corev1.Secret) {
 		}
 }
 
+func getCertificateFromFile(c client.Client) (*x509.Certificate, *rsa.PrivateKey) {
+	logger := utils.GetRegistryLogger(corev1.Secret{}, "CertScheme", "secret")
+
+	rootSecret := corev1.Secret{}
+	req := types.NamespacedName{Name: RootCASecretName, Namespace: RootCASecretNamespace}
+	if err := c.Get(context.TODO(), req, &rootSecret); err != nil {
+		logger.Error(err, "Get Root Secret Error")
+		return nil, nil
+	}
+
+	block, rest := pem.Decode(rootSecret.Data[RootCACert])
+	if len(rest) != 0 {
+		logger.Info("Cert is not PEM format", "Rest", rest)
+		return nil, nil
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		logger.Error(err, "Parse Root CA block Error")
+		return nil, nil
+	}
+
+	privBlock, privRest := pem.Decode(rootSecret.Data[RootCAPriv])
+	if len(privRest) != 0 {
+		logger.Info("Private key is not PEM format", "Rest", privRest)
+		return nil, nil
+	}
+
+	key, privKeyErr := x509.ParsePKCS8PrivateKey(privBlock.Bytes)
+	if privKeyErr != nil {
+		logger.Error(privKeyErr, "Parse private key Error")
+		return nil, nil
+	}
+
+	return cert, key.(*rsa.PrivateKey)
+}
+
 // [TODO] Logging
 func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 	parentPrivateKey *rsa.PrivateKey) ([]byte, *rsa.PrivateKey, error) {
+	logger := utils.GetRegistryLogger(corev1.Secret{}, "CertScheme", "secret")
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return nil, nil, err
@@ -133,7 +179,8 @@ func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 
 	parent := &x509.Certificate{}
 	parentPrivKey := &rsa.PrivateKey{}
-	if parentCert == nil && parentPrivateKey == nil{
+	if parentCert == nil || parentPrivateKey == nil{
+		logger.Info("There is no parent")
 		parent = &template
 		parentPrivKey = privateKey
 	} else {
@@ -152,7 +199,7 @@ func makeCertificate(reg *regv1.Registry, parentCert *x509.Certificate,
 	if erro != nil {
 		return nil, nil, err
 	}
-	//utils.NewRegistryLogger(regv1.Registry{}, reg.Namespace, reg.Name).Info("Cert Test", "Cert", certifi.Raw)
+	//utils.NewRegistryLogger(regv1.Registry{}, reg.Namespace, reg.Name).Info("Cert Test", "Cert", string(serverCertPEM), "Private", privateKey)
 
 	return serverCertPEM, privateKey, nil
 }

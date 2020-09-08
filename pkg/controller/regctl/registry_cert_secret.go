@@ -140,7 +140,7 @@ func (r *RegistryCertSecret) create(c client.Client, reg *regv1.Registry, patchR
 }
 
 func (r *RegistryCertSecret) get(c client.Client, reg *regv1.Registry) error {
-	r.secretOpaque, r.secretTLS = schemes.Secrets(reg)
+	r.secretOpaque, r.secretTLS = schemes.Secrets(reg, c)
 	if r.secretOpaque == nil && r.secretTLS == nil {
 		return regv1.MakeRegistryError("Registry has no fields Secrets required")
 	}
