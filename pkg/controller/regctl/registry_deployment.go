@@ -241,13 +241,17 @@ func (r *RegistryDeployment) compare(reg *regv1.Registry) []utils.Diff {
 	}
 
 	if reg.Spec.PersistentVolumeClaim.Create != nil {
-		vol, _ := volumeMap["registry"]
-		if vol.VolumeSource.PersistentVolumeClaim.ClaimName != (regv1.K8sPrefix + reg.Name) {
+		vol, exist := volumeMap["registry"]
+		if !exist {
+			r.logger.Info("Registry volume is not exist.")
+		} else if vol.VolumeSource.PersistentVolumeClaim.ClaimName != (regv1.K8sPrefix + reg.Name) {
 			diff = append(diff, utils.Diff{Type: utils.Replace, Key: PvcNameDiffKey})
 		}
 	} else {
-		vol, _ := volumeMap["registry"]
-		if vol.VolumeSource.PersistentVolumeClaim.ClaimName != reg.Spec.PersistentVolumeClaim.Exist.PvcName {
+		vol, exist := volumeMap["registry"]
+		if !exist {
+			r.logger.Info("Registry volume is not exist.")
+		} else if vol.VolumeSource.PersistentVolumeClaim.ClaimName != reg.Spec.PersistentVolumeClaim.Exist.PvcName {
 			diff = append(diff, utils.Diff{Type: utils.Replace, Key: PvcNameDiffKey})
 		}
 	}
