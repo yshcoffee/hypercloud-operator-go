@@ -4,6 +4,7 @@ import (
 	"context"
 	"hypercloud-operator-go/internal/schemes"
 	"hypercloud-operator-go/internal/utils"
+	"strings"
 
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 
@@ -135,6 +136,8 @@ func (r *RegistryPVC) get(c client.Client, reg *regv1.Registry) error {
 func (r *RegistryPVC) patch(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, diff []utils.Diff) error {
 	target := r.pvc.DeepCopy()
 	originObject := client.MergeFrom(r.pvc)
+
+	r.logger.Info("Get", "Patch Keys", strings.Join(utils.DiffKeyList(diff), ","))
 
 	for _, d := range diff {
 		switch d.Key {

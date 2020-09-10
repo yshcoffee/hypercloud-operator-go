@@ -20,6 +20,20 @@ type RegistryPod struct {
 }
 
 func (r *RegistryPod) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
+	if err := r.get(c, reg); err != nil {
+		r.logger.Error(err, "Pod error")
+		return err
+	}
+
+	r.logger.Info("Check if recreating pod is required.")
+	if reg.Status.PodRecreateRequired {
+		if err := r.delete(c, patchReg); err != nil {
+			return err
+		}
+
+		r.logger.Info("Recreate pod.")
+		patchReg.Status.PodRecreateRequired = false
+	}
 
 	return nil
 }
@@ -46,7 +60,7 @@ func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 	patchReg.Status.Conditions.SetCondition(contCondition)
 
 	if r.pod == nil {
-		r.logger.Info("pod is nil")
+		r.logger.Info("Pod is nil")
 		podCondition.Status = corev1.ConditionFalse
 		contCondition.Status = corev1.ConditionFalse
 		patchReg.Status.Conditions.SetCondition(podCondition)
@@ -79,7 +93,7 @@ func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 			reason = "NotReady"
 		}
 	} else if contState.State.Terminated != nil {
-		reason = contState.State.Waiting.Reason
+		reason = contState.State.Terminated.Reason
 		r.logger.Info(reason)
 	} else {
 		reason = "Unknown"

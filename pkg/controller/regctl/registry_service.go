@@ -5,6 +5,7 @@ import (
 	"hypercloud-operator-go/internal/schemes"
 	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/operator-framework/operator-sdk/pkg/status"
 	corev1 "k8s.io/api/core/v1"
@@ -23,7 +24,7 @@ type RegistryService struct {
 
 func (r *RegistryService) Handle(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
 	err := r.get(c, reg)
-	if err != nil {
+	if err != nil && errors.IsNotFound(err) {
 		// resource is not exist : have to create
 		if  createError := r.create(c, reg, patchReg, scheme); createError != nil {
 			r.logger.Error(createError, "Create failed in Handle")
@@ -32,12 +33,14 @@ func (r *RegistryService) Handle(c client.Client, reg *regv1.Registry, patchReg 
 	}
 
 	if isValid := r.compare(reg); isValid == nil {
+		r.logger.Info("Service is not Valid")
 		if deleteError := r.delete(c, reg); deleteError != nil {
 			r.logger.Error(deleteError, "Delete failed in Handle")
 			return deleteError
 		}
 	}
 
+	r.logger.Info("Succeed")
 	return nil
 }
 
@@ -73,6 +76,9 @@ func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *
 		reg.Status.LoadBalancerIP = lbIP
 		r.logger.Info("LoadBalancer info", "LoadBalancer IP", lbIP)
 	} else if r.svc.Spec.Type == corev1.ServiceTypeClusterIP {
+		if r.svc.Spec.ClusterIP == "" {
+			return regv1.MakeRegistryError("NotReady")
+		}
 		r.logger.Info("Service Type is ClusterIP(Ingress)")
 		// [TODO]
 	}
@@ -137,12 +143,14 @@ func (r *RegistryService) delete(c client.Client, patchReg *regv1.Registry) erro
 		return err
 	}
 
+	r.logger.Info("Succeed")
 	return nil
 }
 
 func (r *RegistryService) compare(reg *regv1.Registry) []utils.Diff {
 	regServiceSpec := reg.Spec.RegistryService
-	if string(regServiceSpec.ServiceType) != string(r.svc.Spec.Type) {
+	if string(regServiceSpec.ServiceType) == "Ingress" && string(r.svc.Spec.Type) != "ClusterIP" {
+		r.logger.Error(regv1.MakeRegistryError("Type is different"), "Service Type is different")
 		return nil
 	}
 
@@ -150,15 +158,17 @@ func (r *RegistryService) compare(reg *regv1.Registry) []utils.Diff {
 	for _, port := range r.svc.Spec.Ports {
 		if (regServiceSpec.ServiceType == regv1.RegServiceTypeLoadBalancer &&
 			regServiceSpec.LoadBalancer.Port == int(port.Port)) ||
-			(regServiceSpec.ServiceType == regv1.RegServiceTypeIngress && int(port.Port) == 443) {
+			(string(regServiceSpec.ServiceType) == "Ingress" && int(port.Port) == 443) {
 			isPortValid = true
 		}
 	}
 
 	if !isPortValid {
+		r.logger.Error(regv1.MakeRegistryError("Port is invalid"), "Port is not valid")
 		return nil
 	}
 
+	r.logger.Info("Succeed")
 	return []utils.Diff{}
 }
 

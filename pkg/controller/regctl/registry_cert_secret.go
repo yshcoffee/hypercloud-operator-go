@@ -44,6 +44,7 @@ func (r *RegistryCertSecret) Handle(c client.Client, reg *regv1.Registry, patchR
 		}
 	}
 
+	r.logger.Info("Succeed")
 	return nil
 }
 
@@ -139,7 +140,7 @@ func (r *RegistryCertSecret) create(c client.Client, reg *regv1.Registry, patchR
 }
 
 func (r *RegistryCertSecret) get(c client.Client, reg *regv1.Registry) error {
-	r.secretOpaque, r.secretTLS = schemes.Secrets(reg)
+	r.secretOpaque, r.secretTLS = schemes.Secrets(reg, c)
 	if r.secretOpaque == nil && r.secretTLS == nil {
 		return regv1.MakeRegistryError("Registry has no fields Secrets required")
 	}
@@ -213,15 +214,20 @@ func (r *RegistryCertSecret) compare(reg *regv1.Registry) ([]utils.Diff) {
 		if !ok || string(val) != reg.Status.LoadBalancerIP + ":" + strconv.Itoa(reg.Spec.RegistryService.LoadBalancer.Port) {
 			return nil
 		}
-	} else if reg.Spec.RegistryService.ServiceType == regv1.RegServiceTypeIngress {
+	} else if reg.Spec.RegistryService.ServiceType == "Ingress" {
+		r.logger.Info("IngressType")
 		registryDomainName := reg.Name + "." + reg.Spec.RegistryService.Ingress.DomainName
 		val, ok := opaqueData["DOMAIN_NAME"]
 		if !ok || string(val) != registryDomainName {
+			r.logger.Error(regv1.MakeRegistryError("Wrong Domain Name"), "Domain Name", val,
+				"RegistryDomainName", registryDomainName)
 			return nil
 		}
 
 		val, ok = opaqueData["REGISTRY_URL"]
-		if !ok || string(val) != registryDomainName + ":" + string(443) {
+		if !ok || string(val) != registryDomainName + ":" + strconv.Itoa(443) {
+			r.logger.Error(regv1.MakeRegistryError("Wrong Registry URL"), "val", val,
+				"RegistryDomainName", registryDomainName + ":" + strconv.Itoa(443))
 			return nil
 		}
 	} else {
@@ -241,6 +247,7 @@ func (r *RegistryCertSecret) compare(reg *regv1.Registry) ([]utils.Diff) {
 		return nil
 	}
 
+	r.logger.Info("Succeed")
 	return []utils.Diff{}
 }
 

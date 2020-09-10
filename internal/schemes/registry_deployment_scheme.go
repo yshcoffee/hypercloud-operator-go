@@ -218,22 +218,20 @@ func Deployment(reg *regv1.Registry) *appsv1.Deployment {
 		},
 	}
 
-	if reg.Spec.PersistentVolumeClaim.Create != nil {
-		if reg.Spec.PersistentVolumeClaim.Create.VolumeMode == "Block" {
-			vd := corev1.VolumeDevice{
-				Name:       "registry",
-				DevicePath: pvcMountPath,
-			}
-
-			deployment.Spec.Template.Spec.Containers[0].VolumeDevices = append(deployment.Spec.Template.Spec.Containers[0].VolumeDevices, vd)
-		} else {
-			vm := corev1.VolumeMount{
-				Name:      "registry",
-				MountPath: pvcMountPath,
-			}
-
-			deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+	if reg.Spec.PersistentVolumeClaim.Create != nil && reg.Spec.PersistentVolumeClaim.Create.VolumeMode == "Block" {
+		vd := corev1.VolumeDevice{
+			Name:       "registry",
+			DevicePath: pvcMountPath,
 		}
+
+		deployment.Spec.Template.Spec.Containers[0].VolumeDevices = append(deployment.Spec.Template.Spec.Containers[0].VolumeDevices, vd)
+	} else {
+		vm := corev1.VolumeMount{
+			Name:      "registry",
+			MountPath: pvcMountPath,
+		}
+
+		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
 	}
 
 	return deployment
