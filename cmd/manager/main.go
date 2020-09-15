@@ -15,6 +15,8 @@ import (
 
 	"hypercloud-operator-go/pkg/apis"
 	"hypercloud-operator-go/pkg/controller"
+	regApi "hypercloud-operator-go/pkg/registry"
+	"hypercloud-operator-go/pkg/server"
 	"hypercloud-operator-go/version"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
@@ -70,6 +72,10 @@ func main() {
 	logf.SetLogger(zap.Logger())
 
 	printVersion()
+
+	// Added for registry
+	log.Info("Start web server")
+	go server.StartServer()
 
 	namespace, err := k8sutil.GetWatchNamespace()
 	if err != nil {
@@ -131,6 +137,10 @@ func main() {
 	// Add the Metrics Service
 	addMetrics(ctx, cfg)
 
+	// Added for registry
+	log.Info("All registries synchronize...")
+	regApi.AllRegistrySync(mgr.GetScheme())
+
 	log.Info("Starting the Cmd.")
 
 	// Start the Cmd
@@ -138,6 +148,7 @@ func main() {
 		log.Error(err, "Manager exited non-zero")
 		os.Exit(1)
 	}
+
 }
 
 // addMetrics will create the Services and Service Monitors to allow the operator export the metrics by using

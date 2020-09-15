@@ -120,8 +120,6 @@ func (r *ReconcileRegistry) Reconcile(request reconcile.Request) (reconcile.Resu
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Registry")
 
-	// [TODO] Compare spec with annotation spec
-
 	// Fetch the Registry reg
 	reg := &regv1.Registry{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, reg)
