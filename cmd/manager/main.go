@@ -41,6 +41,7 @@ var (
 	metricsPort         int32 = 8383
 	operatorMetricsPort int32 = 8686
 )
+
 var log = logf.Log.WithName("cmd")
 
 func printVersion() {
@@ -72,10 +73,6 @@ func main() {
 	logf.SetLogger(zap.Logger())
 
 	printVersion()
-
-	// Added for registry
-	log.Info("Start web server")
-	go server.StartServer()
 
 	namespace, err := k8sutil.GetWatchNamespace()
 	if err != nil {
@@ -138,6 +135,10 @@ func main() {
 	addMetrics(ctx, cfg)
 
 	// Added for registry
+	log.Info("Start web server")
+	go server.StartServer(mgr)
+
+	// Added for registry
 	log.Info("All registries synchronize...")
 	regApi.AllRegistrySync(mgr.GetScheme())
 
@@ -148,7 +149,6 @@ func main() {
 		log.Error(err, "Manager exited non-zero")
 		os.Exit(1)
 	}
-
 }
 
 // addMetrics will create the Services and Service Monitors to allow the operator export the metrics by using

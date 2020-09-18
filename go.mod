@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/go-logr/logr v0.1.0
+	github.com/goharbor/harbor/src v0.0.0-20200915061611-ebef11476a63
 	github.com/gorilla/mux v1.8.0
 	github.com/operator-framework/operator-sdk v0.18.1
 	github.com/spf13/pflag v1.0.5

@@ -420,6 +420,8 @@ github.com/goharbor/harbor/src v0.0.0-20200819104903-8d7d5790b872/go.mod h1:/y6C
 github.com/goharbor/harbor/src v0.0.0-20200820073835-08a4d8efd261 h1:7eNs4bZddstGNPlVMdbqG0pCd0QQ8vtkjF+ASR+oycA=
 github.com/goharbor/harbor/src v0.0.0-20200911030103-49c80f954c78 h1:+Wpk3/0UsJONwd9YCIIwnMsXq0yhrImKUoSHU6P+GZw=
 github.com/goharbor/harbor/src v0.0.0-20200911030103-49c80f954c78/go.mod h1:/y6C+Dg79WHDRY2vPkqtXVmNJDBb5wSYh9I/VuiwcpI=
+github.com/goharbor/harbor/src v0.0.0-20200915061611-ebef11476a63 h1:S+VwuzkKTBx2rB9tr3xo+WfomunLpMFpb9/W+p3z4rA=
+github.com/goharbor/harbor/src v0.0.0-20200915061611-ebef11476a63/go.mod h1:/y6C+Dg79WHDRY2vPkqtXVmNJDBb5wSYh9I/VuiwcpI=
 github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d/go.mod h1:nnjvkQ9ptGaCkuDUx6wNykzzlUixGxvkme+H/lnzb+A=
 github.com/golang-migrate/migrate/v4 v4.6.2/go.mod h1:JYi6reN3+Z734VZ0akNuyOJNcrg45ZL7LDBMW3WGJL0=
 github.com/golang-migrate/migrate/v4 v4.11.0 h1:uqtd0ysK5WyBQ/T1K2uDIooJV0o2Obt6uPwP062DupQ=
@@ -1067,6 +1069,7 @@ golang.org/x/lint v0.0.0-20190909230951-414d861bb4ac/go.mod h1:6SW0HCj/g11FgYtHl
 golang.org/x/lint v0.0.0-20190930215403-16217165b5de/go.mod h1:6SW0HCj/g11FgYtHlgUYUwCkIfeOF89ocIRzGO/8vkc=
 golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f h1:J5lckAjkw6qYlOZNj90mLYNTEKDvWeuc1yieZ8qUzUE=
 golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f/go.mod h1:5qLYkcX4OjUUV8bRuDixDT3tpyyb+LUpUlRWLxfhWrs=
+golang.org/x/lint v0.0.0-20200130185559-910be7a94367 h1:0IiAsCRByjO2QjX7ZPkw5oU9x+n1YqRL802rjC0c3Aw=
 golang.org/x/lint v0.0.0-20200130185559-910be7a94367/go.mod h1:3xt1FjdF8hUf6vQPIChWIBhFzV8gjjsPE/fR3IyQdNY=
 golang.org/x/mobile v0.0.0-20190312151609-d3739f865fa6/go.mod h1:z+o9i4GpDbdi3rU15maQ/Ox0txvL9dWGYEHz965HBQE=
 golang.org/x/mobile v0.0.0-20190719004257-d2bd2a29d028/go.mod h1:E/iHnbuqvinMTCcRqshq8CkpyQDoeVncDDYHnLhea+o=

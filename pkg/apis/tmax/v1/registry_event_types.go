@@ -20,13 +20,13 @@ type RegistryEvent struct {
 }
 
 type RegistryDescriptor struct {
-	MediaType   string `json:"mediaType"`
-	Size        int    `json:"size"`
-	Digest      string `json:"digest"`
-	Length      int    `json:"length"`
-	Rrepository string `json:"repository"`
-	Url         string `json:"url"`
-	Tag         string `json:"tag"`
+	MediaType  string `json:"mediaType"`
+	Size       int    `json:"size"`
+	Digest     string `json:"digest"`
+	Length     int    `json:"length"`
+	Repository string `json:"repository"`
+	Url        string `json:"url"`
+	Tag        string `json:"tag"`
 }
 
 type RequestRecord struct {
