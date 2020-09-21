@@ -15,6 +15,8 @@ import (
 
 	"hypercloud-operator-go/pkg/apis"
 	"hypercloud-operator-go/pkg/controller"
+	regApi "hypercloud-operator-go/pkg/registry"
+	"hypercloud-operator-go/pkg/server"
 	"hypercloud-operator-go/version"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
@@ -39,6 +41,7 @@ var (
 	metricsPort         int32 = 8383
 	operatorMetricsPort int32 = 8686
 )
+
 var log = logf.Log.WithName("cmd")
 
 func printVersion() {
@@ -130,6 +133,14 @@ func main() {
 
 	// Add the Metrics Service
 	addMetrics(ctx, cfg)
+
+	// Added for registry
+	log.Info("Start web server")
+	go server.StartServer(mgr)
+
+	// Added for registry
+	log.Info("All registries synchronize...")
+	regApi.AllRegistrySync(mgr.GetScheme())
 
 	log.Info("Starting the Cmd.")
 

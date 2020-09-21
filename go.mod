@@ -4,10 +4,9 @@ go 1.13
 
 require (
 	github.com/go-logr/logr v0.1.0
-	github.com/goharbor/harbor/src v0.0.0-20200819104903-8d7d5790b872 // indirect
-	github.com/nsf/jsondiff v0.0.0-20200515183724-f29ed568f4ce // indirect
+	github.com/goharbor/harbor/src v0.0.0-20200915061611-ebef11476a63
+	github.com/gorilla/mux v1.8.0
 	github.com/operator-framework/operator-sdk v0.18.1
-	github.com/r3labs/diff v1.1.0
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.18.2
 	k8s.io/apimachinery v0.18.2

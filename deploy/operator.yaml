@@ -2,32 +2,44 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: hypercloud-operator-go
+  namespace: hypercloud4-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: hypercloud-operator-go
+      hypercloud4: operator
   template:
     metadata:
       labels:
-        name: hypercloud-operator-go
+        hypercloud4: operator
     spec:
-      serviceAccountName: hypercloud-operator-go
+      serviceAccountName: hypercloud4-admin
       containers:
         - name: hypercloud-operator-go
-          # Replace this with the built image name
-          image: dlwlsdnjsehs/registry-operator:v0.0.1 
+          image: dlwlsdnjsehs/registry-operator:v0.0.1
           command:
           - hypercloud-operator-go
           imagePullPolicy: Always
+          volumeMounts:
+          - name: hypercloud4-mnt
+            mountPath: /usr/local/bin
           env:
             - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+              value: ""
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "hypercloud-operator-go"
+            - name: TZ
+              value: Asia/Seoul
+          ports:
+          - containerPort: 28677
+          resources:
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+            requests:
+              cpu: "1"
+              memory: "1Gi"

@@ -86,7 +86,7 @@ func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 		reason = contState.State.Waiting.Reason
 		r.logger.Info(reason)
 	} else if contState.State.Running != nil {
-		r.logger.Info(contState.String())
+		// r.logger.Info(contState.String())
 		if contState.Ready {
 			reason = "Running"
 		} else {

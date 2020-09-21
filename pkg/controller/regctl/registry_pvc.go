@@ -191,9 +191,13 @@ func (r *RegistryPVC) compare(reg *regv1.Registry) []utils.Diff {
 
 	if regPvc.Create != nil {
 		if regPvc.Create.DeleteWithPvc {
-			diff = append(diff, utils.Diff{Type: utils.Add, Key: "DeleteWithPvc"})
+			if len(r.pvc.OwnerReferences) == 0 {
+				diff = append(diff, utils.Diff{Type: utils.Add, Key: "DeleteWithPvc"})
+			}
 		} else {
-			diff = append(diff, utils.Diff{Type: utils.Remove, Key: "DeleteWithPvc"})
+			if len(r.pvc.OwnerReferences) != 0 {
+				diff = append(diff, utils.Diff{Type: utils.Remove, Key: "DeleteWithPvc"})
+			}
 		}
 	}
 

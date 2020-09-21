@@ -5,6 +5,7 @@ import (
 	"hypercloud-operator-go/internal/schemes"
 	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/operator-framework/operator-sdk/pkg/status"
@@ -18,7 +19,7 @@ import (
 const ServiceTypeName = regv1.ConditionTypeService
 
 type RegistryService struct {
-	svc *corev1.Service
+	svc    *corev1.Service
 	logger *utils.RegistryLogger
 }
 
@@ -26,7 +27,7 @@ func (r *RegistryService) Handle(c client.Client, reg *regv1.Registry, patchReg 
 	err := r.get(c, reg)
 	if err != nil && errors.IsNotFound(err) {
 		// resource is not exist : have to create
-		if  createError := r.create(c, reg, patchReg, scheme); createError != nil {
+		if createError := r.create(c, reg, patchReg, scheme); createError != nil {
 			r.logger.Error(createError, "Create failed in Handle")
 			return createError
 		}
@@ -46,9 +47,9 @@ func (r *RegistryService) Handle(c client.Client, reg *regv1.Registry, patchReg 
 
 func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
 	var err error = nil
-	condition := &status.Condition {
+	condition := &status.Condition{
 		Status: corev1.ConditionFalse,
-		Type: ServiceTypeName,
+		Type:   ServiceTypeName,
 	}
 	defer utils.SetError(err, patchReg, condition)
 
@@ -90,9 +91,9 @@ func (r *RegistryService) Ready(c client.Client, reg *regv1.Registry, patchReg *
 }
 
 func (r *RegistryService) create(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, scheme *runtime.Scheme) error {
-	condition := &status.Condition {
+	condition := &status.Condition{
 		Status: corev1.ConditionFalse,
-		Type: ServiceTypeName,
+		Type:   ServiceTypeName,
 	}
 
 	if err := controllerutil.SetControllerReference(reg, r.svc, scheme); err != nil {
@@ -132,9 +133,9 @@ func (r *RegistryService) patch(c client.Client, reg *regv1.Registry, patchReg *
 }
 
 func (r *RegistryService) delete(c client.Client, patchReg *regv1.Registry) error {
-	condition := &status.Condition {
+	condition := &status.Condition{
 		Status: corev1.ConditionFalse,
-		Type: ServiceTypeName,
+		Type:   ServiceTypeName,
 	}
 
 	if err := c.Delete(context.TODO(), r.svc); err != nil {
@@ -171,6 +172,3 @@ func (r *RegistryService) compare(reg *regv1.Registry) []utils.Diff {
 	r.logger.Info("Succeed")
 	return []utils.Diff{}
 }
-
-
-

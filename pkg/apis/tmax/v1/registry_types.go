@@ -112,5 +112,5 @@ type RegistryList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Registry{}, &RegistryList{})
+	SchemeBuilder.Register(&Registry{}, &RegistryList{}, &Repository{}, &RepositoryList{})
 }
