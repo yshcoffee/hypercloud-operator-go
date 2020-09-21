@@ -39,8 +39,15 @@ func (r *RegistryConfigMap) Handle(c client.Client, reg *regv1.Registry, patchRe
 }
 
 func (r *RegistryConfigMap) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	var err error = nil
+	condition := &status.Condition{
+		Status: corev1.ConditionFalse,
+		Type:   regv1.ConditionTypeConfigMap,
+	}
+	defer utils.SetError(err, patchReg, condition)
+
 	if useGet {
-		err := r.get(c, reg)
+		err = r.get(c, reg)
 		if err != nil {
 			r.logger.Error(err, "PersistentVolumeClaim error")
 			return err
@@ -50,22 +57,12 @@ func (r *RegistryConfigMap) Ready(c client.Client, reg *regv1.Registry, patchReg
 	_, exist := r.cm.Data["config.yml"]
 	if !exist {
 		r.logger.Info("NotReady")
-		condition := status.Condition{
-			Status: corev1.ConditionFalse,
-			Type:   regv1.ConditionTypeConfigMap,
-		}
-
-		patchReg.Status.Conditions.SetCondition(condition)
-		return nil
+		err = regv1.MakeRegistryError("NotReady")
+		return err
 	}
 
 	r.logger.Info("Ready")
-	condition := status.Condition{
-		Status: corev1.ConditionTrue,
-		Type:   regv1.ConditionTypeConfigMap,
-	}
-
-	patchReg.Status.Conditions.SetCondition(condition)
+	condition.Status = corev1.ConditionTrue
 	return nil
 }
 

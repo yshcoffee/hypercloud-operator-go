@@ -51,6 +51,14 @@ func (r *RegistryPVC) Handle(c client.Client, reg *regv1.Registry, patchReg *reg
 }
 
 func (r *RegistryPVC) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
+	var err error = nil
+	condition := &status.Condition{
+		Status: corev1.ConditionFalse,
+		Type:   regv1.ConditionTypePvc,
+	}
+
+	defer utils.SetError(err, patchReg, condition)
+
 	if r.pvc == nil || useGet {
 		err := r.get(c, reg)
 		if err != nil {
@@ -61,24 +69,14 @@ func (r *RegistryPVC) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 
 	if string(r.pvc.Status.Phase) == "pending" {
 		r.logger.Info("NotReady")
-		condition := status.Condition{
-			Status: corev1.ConditionFalse,
-			Type:   regv1.ConditionTypePvc,
-		}
-
-		patchReg.Status.Conditions.SetCondition(condition)
-		return nil
+		err = regv1.MakeRegistryError("NotReady")
+		return err
 	}
 
 	patchReg.Status.Capacity = r.pvc.Status.Capacity.Storage().String()
+	condition.Status = corev1.ConditionTrue
 
 	r.logger.Info("Ready")
-	condition := status.Condition{
-		Status: corev1.ConditionTrue,
-		Type:   regv1.ConditionTypePvc,
-	}
-
-	patchReg.Status.Conditions.SetCondition(condition)
 	return nil
 }
 

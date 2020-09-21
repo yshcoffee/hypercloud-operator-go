@@ -39,34 +39,32 @@ func (r *RegistryPod) Handle(c client.Client, reg *regv1.Registry, patchReg *reg
 }
 
 func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv1.Registry, useGet bool) error {
-	podCondition := status.Condition{
+	var err error = nil
+	podCondition := &status.Condition{
 		Type:   regv1.ConditionTypePod,
 		Status: corev1.ConditionFalse,
 	}
-	contCondition := status.Condition{
+	contCondition := &status.Condition{
 		Type:   regv1.ConditionTypeContainer,
 		Status: corev1.ConditionFalse,
 	}
+	defer utils.SetError(err, patchReg, podCondition)
+	defer utils.SetError(err, patchReg, contCondition)
 
 	if r.pod == nil || useGet {
-		err := r.get(c, reg)
+		err = r.get(c, reg)
 		if err != nil {
 			r.logger.Error(err, "Pod error")
 			return err
 		}
 	}
 
-	patchReg.Status.Conditions.SetCondition(podCondition)
-	patchReg.Status.Conditions.SetCondition(contCondition)
-
 	if r.pod == nil {
 		r.logger.Info("Pod is nil")
 		podCondition.Status = corev1.ConditionFalse
 		contCondition.Status = corev1.ConditionFalse
-		patchReg.Status.Conditions.SetCondition(podCondition)
-		patchReg.Status.Conditions.SetCondition(contCondition)
-
-		return regv1.MakeRegistryError(regv1.PodNotFound)
+		err = regv1.MakeRegistryError(regv1.PodNotFound)
+		return err
 	}
 
 	contStatuses := r.pod.Status.ContainerStatuses
@@ -74,10 +72,8 @@ func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 		r.logger.Info("Container's status is nil")
 		podCondition.Status = corev1.ConditionFalse
 		contCondition.Status = corev1.ConditionFalse
-		patchReg.Status.Conditions.SetCondition(podCondition)
-		patchReg.Status.Conditions.SetCondition(contCondition)
-
-		return regv1.MakeRegistryError(regv1.ContainerStatusIsNil)
+		err = regv1.MakeRegistryError(regv1.ContainerStatusIsNil)
+		return err
 	}
 	contState := r.pod.Status.ContainerStatuses[0]
 	var reason string
@@ -105,22 +101,18 @@ func (r *RegistryPod) Ready(c client.Client, reg *regv1.Registry, patchReg *regv
 	case "NotReady":
 		podCondition.Status = corev1.ConditionTrue
 		contCondition.Status = corev1.ConditionFalse
-		patchReg.Status.Conditions.SetCondition(podCondition)
-		patchReg.Status.Conditions.SetCondition(contCondition)
-		return regv1.MakeRegistryError(regv1.PodNotRunning)
+		err = regv1.MakeRegistryError(regv1.PodNotRunning)
+		return err
 
 	case "Running":
 		podCondition.Status = corev1.ConditionTrue
 		contCondition.Status = corev1.ConditionTrue
-		patchReg.Status.Conditions.SetCondition(podCondition)
-		patchReg.Status.Conditions.SetCondition(contCondition)
 
 	default:
 		podCondition.Status = corev1.ConditionFalse
 		contCondition.Status = corev1.ConditionFalse
-		patchReg.Status.Conditions.SetCondition(podCondition)
-		patchReg.Status.Conditions.SetCondition(contCondition)
-		return regv1.MakeRegistryError(regv1.PodNotRunning)
+		err = regv1.MakeRegistryError(regv1.PodNotRunning)
+		return err
 	}
 
 	return nil
