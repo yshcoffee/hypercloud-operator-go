@@ -11,11 +11,13 @@ type RepositorySpec struct {
 type ImageVersion struct {
 	CreatedAt metav1.Time `json:"createdAt"`
 	Version   string      `json:"version"`
+	Delete    bool        `json:"delete"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Repository is the Schema for the repositories API
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=repositories,scope=Namespaced,shortName=repo
 type Repository struct {
 	metav1.TypeMeta   `json:",inline"`

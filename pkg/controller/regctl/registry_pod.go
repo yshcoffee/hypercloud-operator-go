@@ -183,3 +183,12 @@ func (r *RegistryPod) delete(c client.Client, patchReg *regv1.Registry) error {
 func (r *RegistryPod) compare(reg *regv1.Registry) []utils.Diff {
 	return nil
 }
+
+func (r *RegistryPod) PodName(c client.Client, reg *regv1.Registry) (string, error) {
+	if err := r.get(c, reg); err != nil {
+		r.logger.Error(err, "Pod error")
+		return "", err
+	}
+
+	return r.pod.Name, nil
+}
