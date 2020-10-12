@@ -97,3 +97,12 @@ func DiffKeyList(diffList []Diff) []string {
 func ParseImageName(imageName string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(imageName, "/", "-s-"), "_", "-u-")
 }
+
+func Contains(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
+}

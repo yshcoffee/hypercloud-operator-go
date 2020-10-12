@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 
+	"hypercloud-operator-go/internal/utils"
 	regv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
 
@@ -61,13 +62,13 @@ func SyncRegistryImage(r *RegistryApi, c client.Client, reg *regv1.Registry, sch
 	newRepositories, deletedRepositories, existRepositories := []string{}, []string{}, []regv1.Repository{}
 	logger.Info("Comparing ImageName and get New Images Name & Deleted Images Name")
 	for _, regImage := range regImageNames {
-		if !contains(crImageNames, regImage) {
+		if !utils.Contains(crImageNames, regImage) {
 			newRepositories = append(newRepositories, regImage)
 		}
 	}
 
 	for _, crImage := range crImages {
-		if !contains(regImageNames, crImage.Spec.Name) {
+		if !utils.Contains(regImageNames, crImage.Spec.Name) {
 			deletedRepositories = append(deletedRepositories, crImage.Spec.Name)
 		} else {
 			existRepositories = append(existRepositories, crImage)
@@ -95,7 +96,7 @@ func SyncRegistryImage(r *RegistryApi, c client.Client, reg *regv1.Registry, sch
 		regVersions := r.Tags(existRepo.Spec.Name).Tags
 
 		for _, ver := range existRepo.Spec.Versions {
-			if contains(regVersions, ver.Version) {
+			if utils.Contains(regVersions, ver.Version) {
 				logger.Info("exist", "version", ver)
 				imageVersions = append(imageVersions, regv1.ImageVersion{Version: ver.Version, CreatedAt: ver.CreatedAt})
 			}
@@ -106,7 +107,7 @@ func SyncRegistryImage(r *RegistryApi, c client.Client, reg *regv1.Registry, sch
 		}
 
 		for _, regVersion := range regVersions {
-			if !contains(existImageVersions, regVersion) {
+			if !utils.Contains(existImageVersions, regVersion) {
 				logger.Info("new", "version", regVersion)
 				imageVersions = append(imageVersions, regv1.ImageVersion{Version: regVersion, CreatedAt: metav1.Now()})
 			}

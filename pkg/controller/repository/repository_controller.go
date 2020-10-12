@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"hypercloud-operator-go/internal/utils"
 	tmaxv1 "hypercloud-operator-go/pkg/apis/tmax/v1"
 	"hypercloud-operator-go/pkg/controller/regctl"
 	regApi "hypercloud-operator-go/pkg/registry"
@@ -93,8 +94,14 @@ func (r *ReconcileRepository) Reconcile(request reconcile.Request) (reconcile.Re
 	err := r.client.Get(context.TODO(), request.NamespacedName, repo)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reg, err := GetRegistryByRequest(r.client, request)
+			reg, err := getRegistryByRequest(r.client, request)
 			if err != nil {
+				reqLogger.Error(err, "")
+				return reconcile.Result{}, err
+			}
+
+			repoName, _ := splitRepoCRName(request.Name)
+			if err := sweepRegistryRepo(r.client, reg, repoName); err != nil {
 				reqLogger.Error(err, "")
 				return reconcile.Result{}, err
 			}
@@ -105,66 +112,113 @@ func (r *ReconcileRepository) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	reg, err := GetRegistryByRequest(r.client, request)
+	reg, err := getRegistryByRequest(r.client, request)
 	if err != nil {
 		reqLogger.Error(err, "")
 		return reconcile.Result{}, err
 	}
 
-	sweepImage(r.client, reg, repo)
+	if err := sweepImages(r.client, reg, repo); err != nil {
+		reqLogger.Error(err, "")
+		return reconcile.Result{}, err
+	}
 
 	return reconcile.Result{}, nil
 }
 
-func Registry(c client.Client, repo *tmaxv1.Repository) (*tmaxv1.Registry, error) {
-	registry := &tmaxv1.Registry{}
-	err := c.Get(context.TODO(), types.NamespacedName{Name: repo.Spec.Registry, Namespace: repo.Namespace}, registry)
-	if err != nil {
-		return nil, err
+func patchRepo(c client.Client, reg *tmaxv1.Registry, repo *tmaxv1.Repository, deletedTags []string) error {
+	repoctl := &regctl.RegistryRepository{}
+	patchRepo := repo.DeepCopy()
+	patchImageList := []tmaxv1.ImageVersion{}
+
+	for _, image := range repo.Spec.Versions {
+		if !utils.Contains(deletedTags, image.Version) {
+			patchImageList = append(patchImageList, image)
+		}
 	}
 
-	return registry, nil
-}
-func GetRegistryByRequest(c client.Client, request reconcile.Request) (*tmaxv1.Registry, error) {
-	registry := &tmaxv1.Registry{}
-	name := registryName(request.Name)
-	namespace := request.Namespace
-	err := c.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, registry)
-	if err != nil {
-		return nil, err
+	patchRepo.Spec.Versions = patchImageList
+	if err := repoctl.Patch(c, repo, patchRepo); err != nil {
+		return err
 	}
 
-	return registry, nil
+	return nil
 }
 
-func registryName(repoName string) string {
-	parts := strings.Split(repoName, ".")
+func sweepImages(c client.Client, reg *tmaxv1.Registry, repo *tmaxv1.Repository) error {
+	repoName := repo.Spec.Name
+	images := repo.Spec.Versions
+	delTags := []string{}
 
-	return parts[len(parts)-1]
+	for _, image := range images {
+		if image.Delete {
+			delTags = append(delTags, image.Version)
+		}
+	}
+
+	deletedTags, err := deleteImagesInRepo(c, reg, repoName, delTags)
+	if err != nil {
+		return err
+	}
+
+	if err := patchRepo(c, reg, repo, deletedTags); err != nil {
+		return err
+	}
+
+	if err := garbageCollect(c, reg); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func sweepImage(c client.Client, reg *tmaxv1.Registry, repo *tmaxv1.Repository) {
-
-}
-
-func deleteRegistryRepo(c client.Client, reg *tmaxv1.Registry, repoName string) error {
+func sweepRegistryRepo(c client.Client, reg *tmaxv1.Registry, repoName string) error {
 	ra := regApi.NewRegistryApi(reg)
-	for _, tag := range ra.Tags(repoName).Tags {
+
+	tags := ra.Tags(repoName).Tags
+	if tags == nil {
+		return nil
+	}
+	if _, err := deleteImagesInRepo(c, reg, repoName, ra.Tags(repoName).Tags); err != nil {
+		return err
+	}
+
+	if err := garbageCollect(c, reg); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func deleteImagesInRepo(c client.Client, reg *tmaxv1.Registry, repoName string, tags []string) ([]string, error) {
+	ra := regApi.NewRegistryApi(reg)
+	deletedTags := []string{}
+
+	for _, tag := range tags {
 		digest, err := ra.DockerContentDigest(repoName, tag)
 		if err != nil {
-			return err
+			log.Error(err, "")
+			return deletedTags, err
 		}
 
 		if err := ra.DeleteManifest(repoName, digest); err != nil {
-			return err
+			log.Error(err, "")
+			return deletedTags, err
 		}
+		deletedTags = append(deletedTags, tag)
 	}
 
+	return deletedTags, nil
+}
+
+func garbageCollect(c client.Client, reg *tmaxv1.Registry) error {
 	podCtl := &regctl.RegistryPod{}
+
 	podName, err := podCtl.PodName(c, reg)
 	if err != nil {
 		return err
 	}
+
 	cmder := regApi.NewCommander(podName, reg.Namespace)
 	out, err := cmder.GarbageCollect()
 	if err != nil {
@@ -173,4 +227,27 @@ func deleteRegistryRepo(c client.Client, reg *tmaxv1.Registry, repoName string) 
 	}
 
 	log.Info("exec", "stdout", out.Outbuf.String(), "stderr", out.Errbuf.String())
+	return nil
+}
+
+func getRegistryByRequest(c client.Client, request reconcile.Request) (*tmaxv1.Registry, error) {
+	registry := &tmaxv1.Registry{}
+	name, _ := splitRepoCRName(request.Name)
+	namespace := request.Namespace
+
+	err := c.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, registry)
+	if err != nil {
+		return nil, err
+	}
+
+	return registry, nil
+}
+
+func splitRepoCRName(crName string) (repoName, regName string) {
+	parts := strings.Split(crName, ".")
+
+	repoName = strings.Join(parts[:len(parts)-1], ".")
+	regName = parts[len(parts)-1]
+
+	return
 }

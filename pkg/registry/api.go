@@ -37,19 +37,19 @@ func NewRegistryApi(reg *regv1.Registry) *RegistryApi {
 func (r *RegistryApi) Catalog() *Repositories {
 	req, err := http.NewRequest(http.MethodGet, r.URL+"/v2/_catalog", nil)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return nil
 	}
 	req.SetBasicAuth(r.Login.Username, r.Login.Password)
 	res, err := r.Client.Do(req)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return nil
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return nil
 	}
 	logger.Info("contents", "repositories", string(body))
@@ -73,19 +73,19 @@ func (r *RegistryApi) Tags(imageName string) *Repository {
 	repo := &Repository{}
 	req, err := http.NewRequest(http.MethodGet, r.URL+"/v2/"+imageName+"/tags/list", nil)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return nil
 	}
 	req.SetBasicAuth(r.Login.Username, r.Login.Password)
 	res, err := r.Client.Do(req)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return nil
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return nil
 	}
 	logger.Info("contents", "tags", string(body))
@@ -97,14 +97,14 @@ func (r *RegistryApi) Tags(imageName string) *Repository {
 func (r *RegistryApi) DockerContentDigest(imageName, tag string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, r.URL+"/v2/"+imageName+"/manifests/"+tag, nil)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return "", err
 	}
 
 	req.SetBasicAuth(r.Login.Username, r.Login.Password)
 	res, err := r.Client.Do(req)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return "", err
 	}
 
@@ -117,7 +117,7 @@ func (r *RegistryApi) DockerContentDigest(imageName, tag string) (string, error)
 	if res.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			logger.Error(err, "Unknown error")
+			logger.Error(err, "")
 			return "", err
 		}
 		logger.Error(nil, "err", "err", fmt.Sprintf("%s", string(body)))
@@ -130,21 +130,21 @@ func (r *RegistryApi) DockerContentDigest(imageName, tag string) (string, error)
 func (r *RegistryApi) DeleteManifest(imageName, digest string) error {
 	req, err := http.NewRequest(http.MethodDelete, r.URL+"/v2/"+imageName+"/manifests/"+digest, nil)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return err
 	}
 
 	req.SetBasicAuth(r.Login.Username, r.Login.Password)
 	res, err := r.Client.Do(req)
 	if err != nil {
-		logger.Error(err, "Unknown error")
+		logger.Error(err, "")
 		return err
 	}
 
 	if res.StatusCode >= 400 {
 		body, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			logger.Error(err, "Unknown error")
+			logger.Error(err, "")
 			return nil
 		}
 		logger.Error(nil, "err", "err", fmt.Sprintf("%s", string(body)))
@@ -152,13 +152,4 @@ func (r *RegistryApi) DeleteManifest(imageName, digest string) error {
 	}
 
 	return nil
-}
-
-func contains(arr []string, str string) bool {
-	for _, a := range arr {
-		if a == str {
-			return true
-		}
-	}
-	return false
 }
